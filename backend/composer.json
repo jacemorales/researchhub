@@ -1,0 +1,12 @@
+{
+  "require": {
+    "google/apiclient": "^2.15",
+    "ext-pdo": "*"
+  },
+  "autoload": {
+    "files": [
+      "includes/config.php",
+      "includes/functions.php"
+    ]
+  }
+}
