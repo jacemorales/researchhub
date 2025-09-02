@@ -1,2 +1,7 @@
+<<<<<<< HEAD
 admin/node_modules/
 user/node_modules/
+=======
+admin/vendor/
+vendor/
+>>>>>>> 86f1c1fbba94f4cf03085d364b186a9da3a94d5f
