@@ -1,13 +1,8 @@
-import { useState } from 'react'
-import Home from './user/Home'
-import './App.css'
+import AppRouter from './Router';
+import './App.css';
 
 function App() {
-  return (
-    <>
-      <Home />
-    </>
-  )
+  return <AppRouter />;
 }
 
-export default App
+export default App;
