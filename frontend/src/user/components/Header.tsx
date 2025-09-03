@@ -2,13 +2,13 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import '../assets/css/style.css'; // Import the stylesheet
 
-// In a real app, you might have a context or a hook for modals
-// For now, these are placeholders for the actions they would trigger.
-const openBlogModal = () => console.log('Open Blog Modal');
-const openAboutModal = () => console.log('Open About Modal');
-const openContactModal = () => console.log('Open Contact Modal');
+interface HeaderProps {
+    onBlogClick: () => void;
+    onAboutClick: () => void;
+    onContactClick: () => void;
+}
 
-const Header = () => {
+const Header: React.FC<HeaderProps> = ({ onBlogClick, onAboutClick, onContactClick }) => {
     // Use environment variables for site name and description
     const siteName = process.env.REACT_APP_SITE_NAME || 'Research Hub';
     const siteDesc = process.env.REACT_APP_SITE_DESC || 'Your Gateway to Academic Resources';
@@ -36,9 +36,9 @@ const Header = () => {
                 <ul>
                     <li><Link to="/user"><i className="fas fa-home"></i> Home</Link></li>
                     <li><a href="#levelCards" onClick={scrollToResources}><i className="fas fa-book"></i> Resources</a></li>
-                    <li><a id="blogLink" onClick={openBlogModal}><i className="fas fa-blog"></i> Blog</a></li>
-                    <li><a id="aboutLink" onClick={openAboutModal}><i className="fas fa-info-circle"></i> About</a></li>
-                    <li><a id="contactLink" onClick={openContactModal}><i className="fas fa-envelope"></i> Contact</a></li>
+                    <li><a id="blogLink" onClick={onBlogClick}><i className="fas fa-blog"></i> Blog</a></li>
+                    <li><a id="aboutLink" onClick={onAboutClick}><i className="fas fa-info-circle"></i> About</a></li>
+                    <li><a id="contactLink" onClick={onContactClick}><i className="fas fa-envelope"></i> Contact</a></li>
                 </ul>
             </nav>
         </header>

@@ -4,20 +4,26 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import Sidebar from './components/Sidebar';
 import AuthorModal from './components/AuthorModal';
-// import AboutModal from './components/AboutModal';
-// import BlogModal from './components/BlogModal';
-// import ContactModal from './components/ContactModal';
+import AboutModal from './components/AboutModal';
+import BlogModal from './components/BlogModal';
+import ContactModal from './components/ContactModal';
 
 const UserLayout = () => {
     const [isAuthorModalOpen, setAuthorModalOpen] = useState(false);
-    // Add states for other modals
+    const [isAboutModalOpen, setAboutModalOpen] = useState(false);
+    const [isBlogModalOpen, setBlogModalOpen] = useState(false);
+    const [isContactModalOpen, setContactModalOpen] = useState(false);
 
     return (
         <div className="user-layout">
-            <Header />
-            <main className="main-content">
+            <Header
+                onAboutClick={() => setAboutModalOpen(true)}
+                onBlogClick={() => setBlogModalOpen(true)}
+                onContactClick={() => setContactModalOpen(true)}
+            />
+            <main className="container">
                 <Sidebar onViewProfileClick={() => setAuthorModalOpen(true)} />
-                <div className="page-content">
+                <div className="main-content">
                     <Outlet /> {/* Child routes will render here */}
                 </div>
             </main>
@@ -25,7 +31,9 @@ const UserLayout = () => {
 
             {/* Modals */}
             <AuthorModal isOpen={isAuthorModalOpen} onClose={() => setAuthorModalOpen(false)} />
-            {/* Other modals would be rendered here, managed by state */}
+            <AboutModal isOpen={isAboutModalOpen} onClose={() => setAboutModalOpen(false)} />
+            <BlogModal isOpen={isBlogModalOpen} onClose={() => setBlogModalOpen(false)} />
+            <ContactModal isOpen={isContactModalOpen} onClose={() => setContactModalOpen(false)} />
         </div>
     );
 };

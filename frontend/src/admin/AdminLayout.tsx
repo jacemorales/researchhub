@@ -1,5 +1,7 @@
 import { Outlet, useNavigate } from 'react-router-dom';
 import AdminHeader from './components/AdminHeader';
+import './assets/css/admin.css';
+import './assets/css/config.css';
 // import { ToastContainer } from 'react-toastify';
 // import 'react-toastify/dist/ReactToastify.css';
 

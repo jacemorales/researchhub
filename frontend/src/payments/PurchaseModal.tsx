@@ -121,8 +121,8 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose, file }) 
     if (!isOpen) return null;
 
     return (
-        <div className="modal" id="purchaseModal">
-            <div className="modal-content">
+        <div className="modal" id="purchaseModal" onClick={handleClose}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                 <span className="close-modal" onClick={handleClose}>&times;</span>
                 <div className="modal-header">
                     <h2 className="modal-title">Complete Your Purchase</h2>
@@ -130,17 +130,39 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose, file }) 
                 </div>
                 <div className="modal-body">
                     {status === 'idle' && (
-                        <form onSubmit={handleSubmit}>
-                            {/* Form fields and summary */}
+                        <form id="checkoutForm" onSubmit={handleSubmit}>
+                            <input type="hidden" id="fileId" name="file_id" value={file?.id} />
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label htmlFor="fullName">Full Name</label>
+                                    <input type="text" id="fullName" name="customer_name" required value={customer.name} onChange={(e) => setCustomer(c => ({...c, name: e.target.value}))}/>
+                                </div>
+                                <div className="form-group">
+                                    <label htmlFor="email">Email Address</label>
+                                    <input type="email" id="email" name="customer_email" required value={customer.email} onChange={(e) => setCustomer(c => ({...c, email: e.target.value}))}/>
+                                </div>
+                            </div>
+                            <div className="payment-summary">
+                                <h3>Order Summary</h3>
+                                <div className="summary-row"><span>Product:</span><span id="summaryProduct">{file?.file_name}</span></div>
+                                <div className="summary-row"><span>Price:</span><span id="summaryPrice">${summary.price.toFixed(2)}</span></div>
+                                <div className="summary-row"><span>Tax (10%):</span><span id="summaryTax">${summary.tax.toFixed(2)}</span></div>
+                                <div className="summary-row"><span>Fee (1.5%):</span><span>${summary.fee.toFixed(2)}</span></div>
+                                <div className="summary-row total"><span>Total:</span><span id="summaryTotal">${summary.total.toFixed(2)}</span></div>
+                            </div>
+                            <div className="form-actions">
+                                <button type="submit" className="btn btn-primary"><i className="fas fa-lock"></i> Complete Purchase</button>
+                            </div>
                         </form>
                     )}
-                    {status === 'initializing' && <div>Initializing...</div>}
-                    {status === 'pending_verification' && <div>Verifying Payment...</div>}
-                    {status === 'success' && <div>Payment Successful!</div>}
+                    {status === 'initializing' && <div className="payment-status"><div>Initializing...</div></div>}
+                    {status === 'pending_verification' && <div className="payment-status"><div>Verifying Payment... Please do not close this window.</div></div>}
+                    {status === 'success' && <div className="payment-status"><div>Payment Successful! Your file has been sent to your email.</div></div>}
                     {status === 'error' && (
-                        <div>
+                        <div className="payment-status">
                             <h3>{errorDetails.message}</h3>
                             <p>{errorDetails.details}</p>
+                            <button onClick={handleInitializePayment} className="btn btn-primary">Try Again</button>
                         </div>
                     )}
                 </div>
