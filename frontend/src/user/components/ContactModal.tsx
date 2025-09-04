@@ -69,10 +69,8 @@ const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) => {
         }
     };
 
-    if (!isOpen) return null;
-
     return (
-        <div className="modal" id="contactModal" onClick={onClose}>
+        <div className="modal" id="contactModal" style={{ display: isOpen ? 'flex' : 'none' }} onClick={onClose}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                 <span className="close-modal" onClick={onClose}>&times;</span>
                 <div className="modal-header">

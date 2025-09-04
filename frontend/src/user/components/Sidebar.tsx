@@ -8,7 +8,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onViewProfileClick }) => {
     const author = {
         name: process.env.REACT_APP_AUTHOR_NAME || 'Dr. Chikwe Chikwe',
         title: process.env.REACT_APP_AUTHOR_TITLE || 'Senior Lecturer & Research Consultant',
-        img: process.env.REACT_APP_AUTHOR_IMG || 'https://via.placeholder.com/150',
+        img: '/author.png',
         bio: process.env.REACT_APP_AUTHOR_BIO_SHORT || 'An experienced educator and researcher.',
     };
 

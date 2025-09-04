@@ -6,10 +6,6 @@ interface AboutModalProps {
 }
 
 const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
-    if (!isOpen) {
-        return null;
-    }
-
     // All content is driven by environment variables for easy customization
     const siteName = process.env.REACT_APP_SITE_NAME || 'Research Hub';
     const about = {
@@ -24,10 +20,10 @@ const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
     };
 
     const teamMembers = [
-        { name: process.env.REACT_APP_TEAM_MEMBER_1_NAME || 'Dr. Evelyn Reed', role: process.env.REACT_APP_TEAM_MEMBER_1_ROLE || 'Founder & Lead Researcher', img: process.env.REACT_APP_TEAM_MEMBER_1_IMG || 'https://via.placeholder.com/150' },
-        { name: process.env.REACT_APP_TEAM_MEMBER_2_NAME || 'Mark Chen', role: process.env.REACT_APP_TEAM_MEMBER_2_ROLE || 'Lead Developer', img: process.env.REACT_APP_TEAM_MEMBER_2_IMG || 'https://via.placeholder.com/150' },
-        { name: process.env.REACT_APP_TEAM_MEMBER_3_NAME || 'Aisha Khan', role: process.env.REACT_APP_TEAM_MEMBER_3_ROLE || 'UX/UI Designer', img: process.env.REACT_APP_TEAM_MEMBER_3_IMG || 'https://via.placeholder.com/150' },
-        { name: process.env.REACT_APP_TEAM_MEMBER_4_NAME || 'Ben Carter', role: process.env.REACT_APP_TEAM_MEMBER_4_ROLE || 'Community Manager', img: process.env.REACT_APP_TEAM_MEMBER_4_IMG || 'https://via.placeholder.com/150' },
+        { name: process.env.REACT_APP_TEAM_MEMBER_1_NAME || 'Dr. Evelyn Reed', role: process.env.REACT_APP_TEAM_MEMBER_1_ROLE || 'Founder & Lead Researcher', img: '/author.png' },
+        { name: process.env.REACT_APP_TEAM_MEMBER_2_NAME || 'Mark Chen', role: process.env.REACT_APP_TEAM_MEMBER_2_ROLE || 'Lead Developer', img: '/author.png' },
+        { name: process.env.REACT_APP_TEAM_MEMBER_3_NAME || 'Aisha Khan', role: process.env.REACT_APP_TEAM_MEMBER_3_ROLE || 'UX/UI Designer', img: '/author.png' },
+        { name: process.env.REACT_APP_TEAM_MEMBER_4_NAME || 'Ben Carter', role: process.env.REACT_APP_TEAM_MEMBER_4_ROLE || 'Community Manager', img: '/author.png' },
     ];
 
     const values = [
@@ -38,7 +34,7 @@ const AboutModal: React.FC<AboutModalProps> = ({ isOpen, onClose }) => {
     ];
 
     return (
-        <div className="modal" id="aboutModal" onClick={onClose}>
+        <div className="modal" id="aboutModal" style={{ display: isOpen ? 'flex' : 'none' }} onClick={onClose}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                 <span className="close-modal" onClick={onClose}>×</span>
 

@@ -6,17 +6,13 @@ interface AuthorModalProps {
 }
 
 const AuthorModal: React.FC<AuthorModalProps> = ({ isOpen, onClose }) => {
-    if (!isOpen) {
-        return null;
-    }
-
     const author = {
         name: process.env.REACT_APP_AUTHOR_NAME || 'Dr. Chikwe Chikwe',
         title: process.env.REACT_APP_AUTHOR_TITLE || 'Senior Lecturer & Research Consultant',
         university: process.env.REACT_APP_AUTHOR_UNIVERSITY || 'University of Port Harcourt',
         email: process.env.REACT_APP_AUTHOR_EMAIL || 'chikwe@researchhub.edu',
         bio: process.env.REACT_APP_AUTHOR_BIO || 'An experienced educator and researcher with a passion for hospitality management and tourism marketing.',
-        img: process.env.REACT_APP_AUTHOR_IMG || 'https://via.placeholder.com/150',
+        img: '/author.png',
         credentialsTitle: process.env.REACT_APP_AUTHOR_CREDENTIALS_TITLE || 'Academic Credentials',
         credentialsDesc: process.env.REACT_APP_AUTHOR_CREDENTIALS_DESC || 'B.Sc & M.Sc in Hospitality Management (University of Port Harcourt)<br>Currently pursuing Ph.D in Hospitality & Tourism Marketing',
         mentorshipTitle: process.env.REACT_APP_AUTHOR_MENTORSHIP_TITLE || 'Mentorship Achievements',
@@ -26,7 +22,7 @@ const AuthorModal: React.FC<AuthorModalProps> = ({ isOpen, onClose }) => {
     };
 
     return (
-        <div className="modal" id="authorModal" onClick={onClose}>
+        <div className="modal" id="authorModal" style={{ display: isOpen ? 'flex' : 'none' }} onClick={onClose}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                 <span className="close-modal" onClick={onClose}>&times;</span>
 

@@ -118,10 +118,8 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose, file }) 
         onClose();
     };
 
-    if (!isOpen) return null;
-
     return (
-        <div className="modal" id="purchaseModal" onClick={handleClose}>
+        <div className="modal" id="purchaseModal" style={{ display: isOpen ? 'flex' : 'none' }} onClick={handleClose}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                 <span className="close-modal" onClick={handleClose}>&times;</span>
                 <div className="modal-header">

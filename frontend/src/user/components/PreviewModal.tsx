@@ -14,28 +14,25 @@ interface PreviewModalProps {
 }
 
 const PreviewModal: React.FC<PreviewModalProps> = ({ isOpen, onClose, file }) => {
-    if (!isOpen || !file) {
-        return null;
-    }
-
     return (
-        <div className="modal" id="previewModal" onClick={onClose}>
+        <div className="modal" id="previewModal" style={{ display: isOpen ? 'flex' : 'none' }} onClick={onClose}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                 <span className="close-modal" onClick={onClose}>&times;</span>
 
-                <div className="modal-header">
-                    <h2 className="modal-title">{file.file_name}</h2>
-                    <p className="modal-subtitle">Resource Preview</p>
-                </div>
+                {file && <>
+                    <div className="modal-header">
+                        <h2 className="modal-title">{file.file_name}</h2>
+                        <p className="modal-subtitle">Resource Preview</p>
+                    </div>
 
-                <div className="modal-body">
-                    <div className="preview-content">
-                        <div className="preview-info">
-                            <h3>Description</h3>
-                            <p>{file.description || 'No description available.'}</p>
-                        </div>
+                    <div className="modal-body">
+                        <div className="preview-content">
+                            <div className="preview-info">
+                                <h3>Description</h3>
+                                <p>{file.description || 'No description available.'}</p>
+                            </div>
 
-                        <div className="preview-note">
+                            <div className="preview-note">
                             <i className="fas fa-info-circle"></i>
                             <p>This is a preview of the academic resource. To access the full content, please complete your purchase.</p>
                         </div>
@@ -47,6 +44,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({ isOpen, onClose, file }) =>
                         Close Preview
                     </button>
                 </div>
+                </>}
             </div>
         </div>
     );

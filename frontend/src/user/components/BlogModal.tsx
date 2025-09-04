@@ -8,10 +8,6 @@ interface BlogModalProps {
 const BlogModal: React.FC<BlogModalProps> = ({ isOpen, onClose }) => {
     const [email, setEmail] = useState('');
 
-    if (!isOpen) {
-        return null;
-    }
-
     const handleSubscribe = (e: React.FormEvent) => {
         e.preventDefault();
         // Add newsletter subscription logic here
@@ -33,13 +29,13 @@ const BlogModal: React.FC<BlogModalProps> = ({ isOpen, onClose }) => {
     };
 
     const articles = [
-        { img: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600', title: 'Research Methodology Guide', date: 'June 15, 2023', readTime: '8 min read', excerpt: 'Learn how to implement effective research methodologies...' },
-        { img: 'https://images.unsplash.com/photo-1547658719-da2b51169166?w=600', title: 'Academic Writing Tips', date: 'June 5, 2023', readTime: '12 min read', excerpt: 'Explore the most useful academic writing techniques...' },
-        { img: 'https://images.unsplash.com/photo-1559028012-481c04fa702d?w=600', title: 'Study Techniques', date: 'May 28, 2023', readTime: '6 min read', excerpt: 'Discover the emerging study techniques that will dominate...' },
+        { img: '/author.png', title: 'Research Methodology Guide', date: 'June 15, 2023', readTime: '8 min read', excerpt: 'Learn how to implement effective research methodologies...' },
+        { img: '/author.png', title: 'Academic Writing Tips', date: 'June 5, 2023', readTime: '12 min read', excerpt: 'Explore the most useful academic writing techniques...' },
+        { img: '/author.png', title: 'Study Techniques', date: 'May 28, 2023', readTime: '6 min read', excerpt: 'Discover the emerging study techniques that will dominate...' },
     ];
 
     return (
-        <div className="modal" id="blogModal" onClick={onClose}>
+        <div className="modal" id="blogModal" style={{ display: isOpen ? 'flex' : 'none' }} onClick={onClose}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                 <span className="close-modal" onClick={onClose}>×</span>
 

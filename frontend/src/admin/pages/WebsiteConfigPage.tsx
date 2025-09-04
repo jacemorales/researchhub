@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import AdminHeader from '../components/AdminHeader';
 // import { toast } from 'react-toastify';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
@@ -48,9 +49,11 @@ const WebsiteConfigPage = () => {
     if (loading) return <div>Loading...</div>;
 
     return (
-        <div className="config-content">
-            <div className="config-header">
-                <h1><i className="fas fa-cog"></i> Website Configuration</h1>
+        <div className="admin-container">
+            <AdminHeader onLogout={() => { /* handle logout */ }} />
+            <div className="config-content">
+                <div className="config-header">
+                    <h1><i className="fas fa-cog"></i> Website Configuration</h1>
                 <p>Manage all website settings and content.</p>
             </div>
             <div className="config-grid">
@@ -85,6 +88,7 @@ const WebsiteConfigPage = () => {
                 ))}
             </div>
             {/* Modals for editing would go here */}
+            </div>
         </div>
     );
 };

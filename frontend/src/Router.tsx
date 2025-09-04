@@ -30,9 +30,9 @@ const AppRouter = () => {
                 {/* Admin Routes */}
                 <Route path="/admin" element={<AdminLayout />}>
                     <Route index element={<AdminDashboard />} />
-                    <Route path="payments" element={<PaymentsPage />} />
-                    <Route path="config" element={<WebsiteConfigPage />} />
                 </Route>
+                <Route path="/admin/payments" element={<PaymentsPage />} />
+                <Route path="/admin/config" element={<WebsiteConfigPage />} />
 
                 {/* 404 Not Found Route */}
                 <Route path="*" element={<NotFound />} />

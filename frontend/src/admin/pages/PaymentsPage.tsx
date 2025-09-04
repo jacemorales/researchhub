@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import PaymentDetailsModal from '../components/PaymentDetailsModal';
+import AdminHeader from '../components/AdminHeader';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
@@ -91,9 +92,11 @@ const PaymentsPage = () => {
     if (error) return <div>Error: {error}</div>;
 
     return (
-        <div className="config-content">
-            <div className="config-header">
-                <h1><i className="fas fa-credit-card"></i> Payment Management</h1>
+        <div className="admin-container">
+            <AdminHeader onLogout={() => { /* handle logout */ }} />
+            <div className="config-content">
+                <div className="config-header">
+                    <h1><i className="fas fa-credit-card"></i> Payment Management</h1>
                 <p>View and manage payment transactions from customers.</p>
             </div>
 
@@ -156,6 +159,7 @@ const PaymentsPage = () => {
                 </div>
             </div>
             <PaymentDetailsModal isOpen={isModalOpen} onClose={() => setModalOpen(false)} payment={selectedPayment} />
+            </div>
         </div>
     );
 };
