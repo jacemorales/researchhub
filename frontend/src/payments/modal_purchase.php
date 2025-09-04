@@ -101,31 +101,13 @@
           <p id="statusMessage">Please wait while we process your payment.</p>
         </div>
       </div>
-    </div>
-  </div>
-</div>
 
 
 
 
 
 
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Pay — Research Hub</title>
-  <link rel="stylesheet" href="main.css">
-</head>
-<body>
-  <div class="payment-card">
-    <div class="payment-header">
-      <h2>Research Hub — Payment</h2>
-      <p class="sub">Enter your email and amount. Fee (1.5%) shown for reference.</p>
-    </div>
-
-    <div class="payment-body" id="payment-form-container">
+          <div class="payment-body" id="payment-form-container">
       <form id="payment-form" autocomplete="off">
         <div class="form-group">
           <label for="email">Email</label>
@@ -153,8 +135,15 @@
     <div id="payment-result" style="display:none;"></div>
   </div>
 
+
+
+    </div>
+  </div>
+</div>
+
+
 <script src="errorStates.js"></script>
 <script src="main.js"></script>
-</body>
-</html>
+
+
 
