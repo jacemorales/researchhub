@@ -1,46 +1,56 @@
-<?php 
-require_once 'config.php';
-require_once INCLUDE_PATH . 'header.php';
-?>
+// src/user/Home.tsx
+import { UseConfig } from "../hooks/UseConfig";
+import './assets/css/style.css';
 
-<main class="container">
-    <?php include INCLUDE_PATH . 'sidebar.php'; ?>
+import Header from "./components/Header";
+import Sidebar from "./components/Sidebar";
+import Footer from "./components/Footer";
 
-    <div class="main-resources"id="levelCards">
-        <h2 class="section-title"><?php echo getConfig('RESOURCES_TITLE', 'Academic Resources'); ?></h2>
-        <p class="section-subtitle"><?php echo getConfig('RESOURCE_BIO', RESOURCE_BIO); ?></p>
-        
-        
-        <div class="level-cards">
-            <!-- Undergraduate Card -->
-            <div class="level-card" onclick="window.location.href='pages/marketplace.php?level=undergraduate'">
-                <div class="level-icon undergraduate">
-                    <i class="fas fa-user-graduate"></i>
-                </div>
-                <h3>Undergraduate</h3>
-                <p>Access projects, research papers, and study materials for undergraduate programs</p>
-                <button class="btn">Explore Resources</button>
+const Home = () => {
+  const { config } = UseConfig();
+
+  return (
+    <>
+      <Header />
+
+      <main className="container">
+        <Sidebar />
+
+        <div className="main-resources" id="levelCards">
+          <h2 className="section-title">{config?.RESOURCES_TITLE}</h2>
+          <p className="section-subtitle">{config?.RESOURCE_BIO}</p>
+
+          <div className="level-cards">
+            <div
+              className="level-card"
+              onClick={() => (window.location.href = "/user/marketplace?level=undergraduate")}
+            >
+              <div className="level-icon undergraduate">
+                <i className="fas fa-user-graduate" />
+              </div>
+              <h3>Undergraduate</h3>
+              <p>Access projects, research papers, and study materials for undergraduate programs</p>
+              <button className="btn">Explore Resources</button>
             </div>
-            
-            <!-- Postgraduate Card -->
-            <div class="level-card" onclick="window.location.href='pages/marketplace.php?level=postgraduate'">
-                <div class="level-icon postgraduate">
-                    <i class="fas fa-graduation-cap"></i>
-                </div>
-                <h3>Postgraduate</h3>
-                <p>Discover thesis papers, advanced research materials, and academic publications</p>
-                <button class="btn">Explore Resources</button>
+
+            <div
+              className="level-card"
+              onClick={() => (window.location.href = "/user/marketplace?level=postgraduate")}
+            >
+              <div className="level-icon postgraduate">
+                <i className="fas fa-graduation-cap" />
+              </div>
+              <h3>Postgraduate</h3>
+              <p>Discover thesis papers, advanced research materials, and academic publications</p>
+              <button className="btn">Explore Resources</button>
             </div>
+          </div>
         </div>
-    </div>
-</main>
+      </main>
 
+      <Footer />
+    </>
+  );
+};
 
-<?php 
-include INCLUDE_PATH . 'modal_contact.php';
-include INCLUDE_PATH . 'modal_about.php';
-include INCLUDE_PATH . 'modal_blog.php';
-include INCLUDE_PATH . 'modal_author.php';
-include INCLUDE_PATH . 'notification.php';
-include INCLUDE_PATH . 'footer.php';
-?>
+export default Home;
