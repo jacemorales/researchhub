@@ -1,33 +1,74 @@
 import { useState, useEffect } from "react";
-import { UseConfig } from "../../hooks/UseConfig";
+import { useData } from "../../hooks/useData";
 
 // Components
 import ModalPreview from "../components/ModalPreview";
 import ModalPurchase from "../../payments/ModalPurchase";
+import Header from "../components/Header";
 
 const Marketplace = () => {
-  const { config } = UseConfig();
+  const { academic_files } = useData();
   const [resources, setResources] = useState<any[]>([]);
   const [level, setLevel] = useState("undergraduate");
   const [previewData, setPreviewData] = useState<any | null>(null);
   const [purchaseData, setPurchaseData] = useState<any | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const levelParam = params.get("level") || "undergraduate";
     setLevel(levelParam);
 
-    fetch(`${import.meta.env.VITE_API_BASE_URL}/backend/get_academic_files.php?level=${levelParam}`)
-      .then((res) => res.json())
-      .then((data) => setResources(data))
-      .catch(() => setResources([]));
-  }, []);
+    if (academic_files) {
+      const filteredResources = academic_files
+        .filter((file) => file.level === levelParam)
+        .filter((file) => {
+          if (selectedCategory === "all") return true;
+          return file.category === selectedCategory;
+        })
+        .filter((file) => {
+          if (searchTerm === "") return true;
+          return (
+            file.file_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (file.description || "").toLowerCase().includes(searchTerm.toLowerCase())
+          );
+        });
+      setResources(filteredResources);
+    }
+  }, [academic_files, level, selectedCategory, searchTerm]);
 
   return (
+    <>
+      <Header />
+
     <div className="marketplace-container" id="levelCards">
-      {/* Header */}
+      {/* Breadcrumb */}
+      <div className="breadcrumb">
+        <a href="/user">Home</a>
+        <span>/</span>
+        <a href="#" className="active">{level.charAt(0).toUpperCase() + level.slice(1)} Resources</a>
+      </div>
+
+      {/* Marketplace Header */}
       <div className="marketplace-header">
         <h1>{level.charAt(0).toUpperCase() + level.slice(1)} Resources</h1>
+        <div className="controls">
+          <div className="search-box">
+            <i className="fas fa-search"></i>
+            <input type="text" placeholder="Search resources..." id="resourceSearch" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          </div>
+          <select id="resourceFilter" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+            <option value="all">All Categories</option>
+            <option value="research">Research Papers</option>
+            <option value="thesis">Thesis</option>
+            <option value="dissertation">Dissertation</option>
+            <option value="assignment">Assignment</option>
+            <option value="project">Project</option>
+            <option value="presentation">Presentation</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
       </div>
 
       {/* Grid */}
@@ -41,22 +82,35 @@ const Marketplace = () => {
         ) : (
           resources.map((file) => (
             <div key={file.id} className="resource-card" data-category={file.category}>
-              <div className="resource-info">
-                <h3>{file.file_name}</h3>
+              <div className="resource-header">
+                <div className="file-icon">
+                  <i className="fas fa-file"></i>
+                </div>
+                <div className="resource-info">
+                  <h3>{file.file_name}</h3>
+                  <p className="file-meta">
+                    <span><i className="fas fa-tag"></i> {file.category}</span>
+                    <span><i className="fas fa-file"></i> {file.file_type}</span>
+                    <span><i className="fas fa-weight-hanging"></i> {file.file_size}</span>
+                  </p>
+                </div>
+              </div>
+              <div className="resource-description">
                 <p>{file.description}</p>
               </div>
-
               <div className="resource-footer">
-                <span className="price">${Number(file.price).toFixed(2)}</span>
+                <div className="price">
+                  <span className="price-amount">${Number(file.price).toFixed(2)}</span>
+                </div>
                 <div className="actions">
                   <button
-                    className="btn btn-outline"
+                    className="btn btn-sm btn-outline"
                     onClick={() => setPreviewData(file)}
                   >
                     <i className="fas fa-eye"></i> Preview
                   </button>
                   <button
-                    className="btn btn-primary"
+                    className="btn btn-sm btn-primary"
                     onClick={() => setPurchaseData(file)}
                   >
                     <i className="fas fa-shopping-cart"></i> Purchase
@@ -76,7 +130,9 @@ const Marketplace = () => {
         <ModalPurchase data={purchaseData} onClose={() => setPurchaseData(null)} />
       )}
     </div>
+    </>
   );
 };
 
 export default Marketplace;
+                                                                  

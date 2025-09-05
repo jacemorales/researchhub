@@ -1,8 +1,8 @@
-import { UseConfig } from "../../hooks/UseConfig";
+import { useData } from "../../hooks/useData";
 interface ModalProps {onClose: () => void;}
 
 const ModalAuthor = ({ onClose }: ModalProps) => {
-  const { config } = UseConfig();
+  const { website_config } = useData();
 
   return (
     <div className="modal" id="authorModal">
@@ -11,24 +11,24 @@ const ModalAuthor = ({ onClose }: ModalProps) => {
 
         <div className="author-profile-header">
           <img
-            src={config?.AUTHOR_IMG}
-            alt={config?.AUTHOR_NAME}
+            src={website_config?.AUTHOR_IMG}
+            alt={website_config?.AUTHOR_NAME}
             className="author-profile-img"
           />
           <div className="author-profile-info">
-            <h2 className="author-profile-name">{config?.AUTHOR_NAME}</h2>
-            <p className="author-profile-title">{config?.AUTHOR_TITLE}</p>
+            <h2 className="author-profile-name">{website_config?.AUTHOR_NAME}</h2>
+            <p className="author-profile-title">{website_config?.AUTHOR_TITLE}</p>
             <p className="author-profile-contact">
-              <i className="fas fa-university" /> {config?.AUTHOR_UNIVERSITY}
+              <i className="fas fa-university" /> {website_config?.AUTHOR_UNIVERSITY}
             </p>
             <p className="author-profile-contact">
-              <i className="fas fa-envelope" /> {config?.AUTHOR_EMAIL}
+              <i className="fas fa-envelope" /> {website_config?.AUTHOR_EMAIL}
             </p>
           </div>
         </div>
 
         <div className="author-profile-bio">
-          <p>{config?.AUTHOR_BIO}</p>
+          <p>{website_config?.AUTHOR_BIO}</p>
         </div>
 
         <div className="author-highlights">
@@ -37,8 +37,8 @@ const ModalAuthor = ({ onClose }: ModalProps) => {
               <i className="fas fa-graduation-cap" />
             </div>
             <div className="highlight-content">
-              <h4>{config?.AUTHOR_CREDENTIALS_TITLE}</h4>
-              <p dangerouslySetInnerHTML={{ __html: config?.AUTHOR_CREDENTIALS_DESC || "" }} />
+              <h4>{website_config?.AUTHOR_CREDENTIALS_TITLE}</h4>
+              <p>{website_config?.AUTHOR_CREDENTIALS_DESC}</p>
             </div>
           </div>
 
@@ -47,8 +47,8 @@ const ModalAuthor = ({ onClose }: ModalProps) => {
               <i className="fas fa-chalkboard-teacher" />
             </div>
             <div className="highlight-content">
-              <h4>{config?.AUTHOR_MENTORSHIP_TITLE}</h4>
-              <p dangerouslySetInnerHTML={{ __html: config?.AUTHOR_MENTORSHIP_DESC || "" }} />
+              <h4>{website_config?.AUTHOR_MENTORSHIP_TITLE}</h4>
+              <p>{website_config?.AUTHOR_MENTORSHIP_DESC}</p>
             </div>
           </div>
 
@@ -57,8 +57,8 @@ const ModalAuthor = ({ onClose }: ModalProps) => {
               <i className="fas fa-book" />
             </div>
             <div className="highlight-content">
-              <h4>{config?.AUTHOR_PUBLICATIONS_TITLE}</h4>
-              <p>{config?.AUTHOR_PUBLICATIONS_DESC}</p>
+              <h4>{website_config?.AUTHOR_PUBLICATIONS_TITLE}</h4>
+              <p>{website_config?.AUTHOR_PUBLICATIONS_DESC}</p>
             </div>
           </div>
         </div>

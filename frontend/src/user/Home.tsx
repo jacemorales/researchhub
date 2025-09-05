@@ -1,5 +1,5 @@
 // src/user/Home.tsx
-import { UseConfig } from "../hooks/UseConfig";
+import { useData } from "../hooks/useData";
 import './assets/css/style.css';
 
 import Header from "./components/Header";
@@ -7,7 +7,7 @@ import Sidebar from "./components/Sidebar";
 import Footer from "./components/Footer";
 
 const Home = () => {
-  const { config } = UseConfig();
+  const { website_config } = useData();
 
   return (
     <>
@@ -17,8 +17,8 @@ const Home = () => {
         <Sidebar />
 
         <div className="main-resources" id="levelCards">
-          <h2 className="section-title">{config?.RESOURCES_TITLE}</h2>
-          <p className="section-subtitle">{config?.RESOURCE_BIO}</p>
+          <h2 className="section-title">{website_config?.RESOURCES_TITLE}</h2>
+          <p className="section-subtitle">{website_config?.RESOURCE_BIO}</p>
 
           <div className="level-cards">
             <div

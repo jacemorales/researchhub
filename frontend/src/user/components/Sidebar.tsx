@@ -1,10 +1,10 @@
 // src/components/Sidebar.tsx
 import { useState } from "react";
-import { UseConfig } from "../../hooks/UseConfig";
+import { useData } from "../../hooks/useData";
 import ModalAuthor from "./ModalAuthor";
 
 const Sidebar = () => {
-  const { config } = UseConfig();
+  const { website_config } = useData();
   const [showAuthor, setShowAuthor] = useState(false);
 
   return (
@@ -12,16 +12,16 @@ const Sidebar = () => {
       <aside className="sidebar">
         <div className="author-header">
           <img
-            src={config?.AUTHOR_IMG}
-            alt={config?.AUTHOR_NAME}
+            src={website_config?.AUTHOR_IMG}
+            alt={website_config?.AUTHOR_NAME}
             className="author-img"
             onError={(e) => {
               e.currentTarget.src = "/author.png";
             }}
           />
-          <h2 className="author-name">{config?.AUTHOR_NAME}</h2>
-          <p className="author-title">{config?.AUTHOR_TITLE}</p>
-          <p className="author-bio">{config?.AUTHOR_BIO}</p>
+          <h2 className="author-name">{website_config?.AUTHOR_NAME}</h2>
+          <p className="author-title">{website_config?.AUTHOR_TITLE}</p>
+          <p className="author-bio">{website_config?.AUTHOR_BIO}</p>
           <button
             className="btn btn-outline"
             id="viewProfileBtn"

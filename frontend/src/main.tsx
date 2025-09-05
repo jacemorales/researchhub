@@ -2,12 +2,12 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
-import { ConfigProvider } from "./hooks/UseConfig";
+import { DataProvider } from "./hooks/useData";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <ConfigProvider>
+    <DataProvider>
       <App />
-    </ConfigProvider>
+    </DataProvider>
   </StrictMode>
 );

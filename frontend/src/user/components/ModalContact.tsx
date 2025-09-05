@@ -1,13 +1,13 @@
 // src/components/ModalContact.tsx
 import { useCallback, useEffect, useRef, useState } from "react";
-import { UseConfig } from "../../hooks/UseConfig";
+import { useData } from "../../hooks/useData";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const LOCATION_API = import.meta.env.VITE_LOCATION_API_KEY;
 interface ModalProps {onClose: () => void;}
 
 const ModalContact = ({ onClose }: ModalProps) => {
-  const { config } = UseConfig();
+  const { website_config } = useData();
 
   // refs & state to mirror the PHP DOM manipulations
   const locationRef = useRef<HTMLSpanElement | null>(null);
@@ -129,8 +129,8 @@ const ModalContact = ({ onClose }: ModalProps) => {
         <span className="close-modal" data-modal="contactModal" onClick={onClose}>&times;</span>
 
         <div className="modal-header">
-          <h2 className="modal-title">{config?.CONTACT_TITLE}</h2>
-          <p className="modal-subtitle">{config?.CONTACT_SUBTITLE}</p>
+          <h2 className="modal-title">{website_config?.CONTACT_TITLE}</h2>
+          <p className="modal-subtitle">{website_config?.CONTACT_SUBTITLE}</p>
         </div>
 
         <div className="modal-body">
@@ -139,20 +139,20 @@ const ModalContact = ({ onClose }: ModalProps) => {
               <i className="fas fa-envelope" />
               <div>
                 <strong>Email:</strong>{" "}
-                <a href={`mailto:${config?.CONTACT_EMAIL}`}>{config?.CONTACT_EMAIL}</a>
+                <a href={`mailto:${website_config?.CONTACT_EMAIL}`}>{website_config?.CONTACT_EMAIL}</a>
               </div>
             </div>
             <div className="contact-item">
               <i className="fas fa-phone" />
               <div>
                 <strong>Phone:</strong>{" "}
-                <a href={`tel:${config?.CONTACT_PHONE}`}>{config?.CONTACT_PHONE}</a>
+                <a href={`tel:${website_config?.CONTACT_PHONE}`}>{website_config?.CONTACT_PHONE}</a>
               </div>
             </div>
             <div className="contact-item">
               <i className="fas fa-map-marker-alt" />
               <div>
-                <strong>Address:</strong> <span>{config?.CONTACT_ADDRESS}</span>
+                <strong>Address:</strong> <span>{website_config?.CONTACT_ADDRESS}</span>
               </div>
             </div>
             <div className="contact-item">
@@ -167,36 +167,36 @@ const ModalContact = ({ onClose }: ModalProps) => {
             <form id="contactForm" onSubmit={onSubmit}>
               <div className="form-row">
                 <div className="form-group">
-                  <label htmlFor="contactName">{config?.CONTACT_NAME_LABEL}</label>
+                  <label htmlFor="contactName">{website_config?.CONTACT_NAME_LABEL}</label>
                   <input type="text" id="contactName" name="contact_name" required />
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="contactEmail">{config?.CONTACT_EMAIL_LABEL}</label>
+                  <label htmlFor="contactEmail">{website_config?.CONTACT_EMAIL_LABEL}</label>
                   <input type="email" id="contactEmail" name="contact_email" required />
                 </div>
               </div>
 
               <div className="form-group">
-                <label htmlFor="contactSubject">{config?.CONTACT_SUBJECT_LABEL}</label>
+                <label htmlFor="contactSubject">{website_config?.CONTACT_SUBJECT_LABEL}</label>
                 <input type="text" id="contactSubject" name="contact_subject" required />
               </div>
 
               <div className="form-group">
-                <label htmlFor="contactMessage">{config?.CONTACT_MESSAGE_LABEL}</label>
+                <label htmlFor="contactMessage">{website_config?.CONTACT_MESSAGE_LABEL}</label>
                 <textarea id="contactMessage" name="contact_message" rows={5} required />
               </div>
 
               <div className="form-actions">
                 <button type="submit" className="btn btn-primary">
-                  <i className="fas fa-paper-plane" /> {config?.CONTACT_SUBMIT_BUTTON}
+                  <i className="fas fa-paper-plane" /> {website_config?.CONTACT_SUBMIT_BUTTON}
                 </button>
                 <button
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => (window as any).closeModal?.("contactModal")}
                 >
-                  {config?.CONTACT_CANCEL}
+                  {website_config?.CONTACT_CANCEL}
                 </button>
               </div>
             </form>

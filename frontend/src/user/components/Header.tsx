@@ -1,13 +1,13 @@
 // src/components/Header.tsx
 import { useEffect, useState } from "react";
-import { UseConfig } from "../../hooks/UseConfig";
+import { useData } from "../../hooks/useData";
 import ModalContact from "./ModalContact";
 import ModalAbout from "./ModalAbout";
 import ModalBlog from "./ModalBlog";
 
 
 const Header = () => {
-  const { config } = UseConfig();
+  const { website_config } = useData();
 
   // Modal states
   const [showContact, setShowContact] = useState(false);
@@ -17,15 +17,15 @@ const Header = () => {
 
   // Load toast.js like PHP did
   useEffect(() => {
-    if (!config?.JS_PATH) return;
+    if (!website_config?.JS_PATH) return;
     const el = document.createElement("script");
-    el.src = `${config.JS_PATH}toast.js`;
+    el.src = `${website_config.JS_PATH}toast.js`;
     el.async = true;
     document.head.appendChild(el);
     return () => {
       document.head.removeChild(el);
     };
-  }, [config?.JS_PATH]);
+  }, [website_config?.JS_PATH]);
 
   return (
     <>
@@ -35,8 +35,8 @@ const Header = () => {
             <i className="fas fa-book-open" />
           </div>
           <div className="logo-text">
-            <h1>{config?.SITE_NAME}</h1>
-            <p>{config?.SITE_DESC}</p>
+            <h1>{website_config?.SITE_NAME}</h1>
+            <p>{website_config?.SITE_DESC}</p>
           </div>
         </div>
 
