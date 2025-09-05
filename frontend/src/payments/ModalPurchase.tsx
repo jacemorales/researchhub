@@ -19,7 +19,7 @@ const ModalPurchase = ({ onClose, data }: ModalProps) => {
 
     scripts.forEach((file) => {
       const el = document.createElement("script");
-      el.src = `/js/${file}`;
+      el.src = `/payments/assets/${file}`;
       el.async = true;
       document.body.appendChild(el);
       els.push(el);
@@ -143,6 +143,42 @@ const ModalPurchase = ({ onClose, data }: ModalProps) => {
                   {website_config?.PURCHASE_CANCEL}
                 </button>
               </div>
+            
+            
+
+              <div className="payment-card">
+    <div className="payment-header">
+      <h2>Research Hub — Payment</h2>
+      <p className="sub">Enter your email and amount. Fee (1.5%) shown for reference.</p>
+    </div>
+
+    <div className="payment-body" id="payment-form-container">
+      <form id="payment-form">
+        <div className="form-group">
+          <label>Email</label>
+          <input id="email" name="email" type="email" className="form-control" placeholder="you@example.com" required />
+        </div>
+
+        <div className="form-group">
+          <label>Amount (₦)</label>
+          <input id="amount" name="amount" type="number" step="0.01" min="0.01" className="form-control" placeholder="1000.00" required/>
+          <div className="fee-info"><i>i</i> Fee (1.5% displayed): ₦<span id="fee-amount">0.00</span></div>
+          <div className="fee-info"><i>i</i> Total (display): ₦<span id="total-amount">0.00</span></div>
+        </div>
+
+        <button type="submit" id="pay-btn" className="btn btn-primary">Pay ₦0.00</button>
+      </form>
+
+      <div id="notification" className="slide-notification"></div>
+    </div>
+
+    <div id="loader-container" className="loader-container" >
+      <div className="loader"></div>
+      <div className="status-text">Processing... please wait</div>
+    </div>
+
+    <div id="payment-result"></div>
+  </div>
             </form>
            
         )}
