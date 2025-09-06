@@ -12,7 +12,7 @@ CREATE TABLE payments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     
     -- Core Transaction Details (from payments.sql)
-    file_id INT NOT NULL,
+    drive_file_id INT NOT NULL,
     customer_name VARCHAR(255) NOT NULL,
     customer_email VARCHAR(255) NOT NULL,
     amount DECIMAL(10, 2) NOT NULL,
@@ -20,16 +20,14 @@ CREATE TABLE payments (
     payment_method VARCHAR(50) DEFAULT 'manual' COMMENT 'e.g., paystack, stripe, paypal',
     
     -- Payment Provider & Status Details (merged)
-    transaction_id VARCHAR(100) UNIQUE NOT NULL COMMENT 'Internal transaction identifier',
-    provider_reference VARCHAR(100) UNIQUE COMMENT 'Reference ID from the payment provider (e.g., Paystack reference)',
+    reference VARCHAR(100) UNIQUE COMMENT 'Reference ID from the payment provider (e.g., Paystack reference)',
     payment_status ENUM('pending', 'completed', 'failed', 'refunded', 'abandoned') DEFAULT 'pending',
+    admin_status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending' COMMENT 'Admin review status',
     
     -- Logging & Timestamps (from paymentss.sql)
     current_status varchar(50) NOT NULL DEFAULT 'pending',
     started_at datetime NOT NULL,
     completed_at datetime NULL DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     transaction_logs TEXT COMMENT 'Logs or full callback data from the payment provider',
 
     -- Indexes for performance
@@ -42,5 +40,4 @@ CREATE TABLE payments (
     FOREIGN KEY (file_id) REFERENCES academic_files(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Note: No sample data is inserted by default in the merged schema.
--- The application logic will handle inserting new payment records.
+
