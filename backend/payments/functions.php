@@ -1,34 +1,15 @@
 <?php
-require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/paymentStructure.php';
 
-use Dotenv\Dotenv;
+require_once __DIR__ . '/../config.php';
 
-// Load environment variables
-try {
-    $dotenv = Dotenv::createImmutable(__DIR__);
-    $dotenv->load();
-} catch (Throwable $e) {
-    // Environment file not found or not readable
-    error_log("Environment file could not be loaded: " . $e->getMessage());
-}
-
-// Database configuration
-$DB_HOST = $_ENV['DB_HOST'];
-$DB_PORT = $_ENV['DB_PORT'];
-$DB_NAME = $_ENV['DB_NAME'];
-$DB_USER = $_ENV['DB_USER'];
-$DB_PASS = $_ENV['DB_PASS'];
-$PAYSTACK_SECRET = $_ENV['PAYSTACK_SECRET'];
-
-// Email configuration
-$MAIL_FROM_ADDRESS = $_ENV['MAIL_FROM_ADDRESS'] ?? 'noreply@researchhub.com';
-$MAIL_FROM_NAME = $_ENV['MAIL_FROM_NAME'] ?? 'Research Hub';
+// Email configuration is now handled in config.php
 
 // Initialize PDO connection
 $pdo = null;
 try {
-    $dsn = "mysql:host={$DB_HOST};port={$DB_PORT};dbname={$DB_NAME};charset=utf8mb4";
+    $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4";
     $options = [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -95,22 +76,16 @@ function getClientInfo($skipGeo = true) {
 }
 
 /**
- * Generate a unique reference for payments - simplified format
+ * Generate a unique transaction ID
  */
-function makeReference() {
-    try {
-        $rand = bin2hex(random_bytes(6)); // 12 chars
-    } catch (Throwable $e) {
-        $rand = substr(md5(uniqid('', true)), 0, 12);
-    }
-    // Simplified format: RESEARCH_HUB_TIMESTAMP_RANDOM
-    return "RESEARCH_HUB_" . strtoupper($rand);
+function makeTransactionId() {
+    return 'TXN' . date('YmdHis') . rand(1000, 9999);
 }
 
 /**
- * Create or get existing payment row
+ * Create a new payment row in the database
  */
-function createOrGetPaymentRow($activeReferenceSession, $email, $amountNaira, $paystackRef) {
+function createPaymentRow($fileId, $customerName, $customerEmail, $amountNaira, $paystackRef) {
     global $pdo;
     
     if (!$pdo) {
@@ -119,60 +94,20 @@ function createOrGetPaymentRow($activeReferenceSession, $email, $amountNaira, $p
     }
 
     try {
-        // Check for existing payment with this activeReferenceSession
-        $stmt = $pdo->prepare("SELECT * FROM payments WHERE reference = ? LIMIT 1");
-        $stmt->execute([$activeReferenceSession]);
-        $existing = $stmt->fetch();
+        // Generate a unique transaction ID
+        $transactionId = makeTransactionId();
 
-        if ($existing) {
-            // Update existing payment journey
-            $journey = json_decode($existing['transaction_logs'], true);
-            if (!is_array($journey)) {
-                $journey = getInitialPaymentJourney($email, $amountNaira);
-            }
-            
-            $journey['payment_journey']['payment_analytics']['total_retry_attempts']++;
-            $journey['payment_journey']['payment_analytics']['last_updated'] = date('Y-m-d H:i:s');
-
-            $client = getClientInfo(false);
-            $ip = $client['ip'];
-            
-            if (!in_array($ip, $journey['payment_journey']['payment_analytics']['unique_ips'])) {
-                $journey['payment_journey']['payment_analytics']['unique_ips'][] = $ip;
-            }
-
-            $journey['payment_journey']['initialized_payments'][] = [
-                'paystack_reference' => $paystackRef,
-                'amount' => $amountNaira,
-                'email' => $email,
-                'started_at' => date('Y-m-d H:i:s'),
-                'device' => $client['device'],
-                'initial_ip' => $ip,
-                'logs' => [
-                    createLogEntry('retry_initiated', $ip, $client['location'], [
-                        'paystack_reference' => $paystackRef,
-                        'retry_count' => $journey['payment_journey']['payment_analytics']['total_retry_attempts']
-                    ])
-                ]
-            ];
-
-            $update = $pdo->prepare("UPDATE payments SET transaction_logs = ?, current_status = 'pending' WHERE id = ?");
-            $update->execute([json_encode($journey, JSON_UNESCAPED_UNICODE), $existing['id']]);
-            
-            return $existing;
-        }
-
-        // Create new payment record
+        // Get client info
         $client = getClientInfo(false);
         $amountStr = number_format($amountNaira, 2, '.', '');
 
-        $journey = getInitialPaymentJourney($email, $amountNaira);
+        // Initialize transaction logs
+        $journey = getInitialPaymentJourney($customerEmail, $amountNaira);
         $journey['payment_journey']['payment_analytics']['unique_ips'][] = $client['ip'];
-
         $journey['payment_journey']['initialized_payments'][] = [
             'paystack_reference' => $paystackRef,
             'amount' => $amountNaira,
-            'email' => $email,
+            'email' => $customerEmail,
             'started_at' => date('Y-m-d H:i:s'),
             'device' => $client['device'],
             'initial_ip' => $client['ip'],
@@ -183,11 +118,22 @@ function createOrGetPaymentRow($activeReferenceSession, $email, $amountNaira, $p
             ]
         ];
 
-        $insert = $pdo->prepare("INSERT INTO payments (reference, amount, email, current_status, started_at, transaction_logs) VALUES (?, ?, ?, 'pending', ?, ?)");
-        $success = $insert->execute([
-            $activeReferenceSession,  // Use activeReferenceSession as the main reference
+        // Prepare the SQL statement
+        $stmt = $pdo->prepare("
+            INSERT INTO payments (
+                file_id, customer_name, customer_email, amount, currency, payment_method,
+                transaction_id, provider_reference, payment_status, started_at, transaction_logs
+            ) VALUES (?, ?, ?, ?, 'NGN', 'paystack', ?, ?, 'pending', ?, ?)
+        ");
+
+        // Execute the statement
+        $success = $stmt->execute([
+            $fileId,
+            $customerName,
+            $customerEmail,
             $amountStr,
-            $email,
+            $transactionId,
+            $paystackRef,
             date('Y-m-d H:i:s'),
             json_encode($journey, JSON_UNESCAPED_UNICODE)
         ]);
@@ -197,6 +143,7 @@ function createOrGetPaymentRow($activeReferenceSession, $email, $amountNaira, $p
             return false;
         }
 
+        // Return the newly created payment record
         $id = $pdo->lastInsertId();
         $select = $pdo->prepare("SELECT * FROM payments WHERE id = ? LIMIT 1");
         $select->execute([$id]);
@@ -204,7 +151,7 @@ function createOrGetPaymentRow($activeReferenceSession, $email, $amountNaira, $p
         return $select->fetch();
         
     } catch (Throwable $e) {
-        error_log("Error in createOrGetPaymentRow: " . $e->getMessage());
+        error_log("Error in createPaymentRow: " . $e->getMessage());
         return false;
     }
 }
@@ -212,7 +159,7 @@ function createOrGetPaymentRow($activeReferenceSession, $email, $amountNaira, $p
 /**
  * Append log entry and update payment status
  */
-function appendLogAndUpdateStatus($reference, $status, $gatewayResponse = '', $skipGeo = true) {
+function appendLogAndUpdateStatus($transactionId, $status, $gatewayResponse = '', $skipGeo = true) {
     global $pdo;
     
     if (!$pdo) {
@@ -221,18 +168,18 @@ function appendLogAndUpdateStatus($reference, $status, $gatewayResponse = '', $s
     }
 
     try {
-        $stmt = $pdo->prepare("SELECT transaction_logs FROM payments WHERE reference = ? LIMIT 1");
-        $stmt->execute([$reference]);
+        $stmt = $pdo->prepare("SELECT transaction_logs FROM payments WHERE transaction_id = ? LIMIT 1");
+        $stmt->execute([$transactionId]);
         $row = $stmt->fetch();
 
         if (!$row) {
-            error_log("Payment record not found for reference: {$reference}");
+            error_log("Payment record not found for transaction ID: {$transactionId}");
             return false;
         }
 
         $journey = json_decode($row['transaction_logs'], true);
         if (!is_array($journey)) {
-            error_log("Invalid transaction logs JSON for reference: {$reference}");
+            error_log("Invalid transaction logs JSON for transaction ID: {$transactionId}");
             return false;
         }
 
@@ -261,8 +208,8 @@ function appendLogAndUpdateStatus($reference, $status, $gatewayResponse = '', $s
             ];
         }
 
-        $update = $pdo->prepare("UPDATE payments SET transaction_logs = ?, current_status = ? WHERE reference = ?");
-        return $update->execute([json_encode($journey, JSON_UNESCAPED_UNICODE), $status, $reference]);
+        $update = $pdo->prepare("UPDATE payments SET transaction_logs = ?, payment_status = ? WHERE transaction_id = ?");
+        return $update->execute([json_encode($journey, JSON_UNESCAPED_UNICODE), $status, $transactionId]);
         
     } catch (Throwable $e) {
         error_log("Error in appendLogAndUpdateStatus: " . $e->getMessage());
@@ -271,9 +218,9 @@ function appendLogAndUpdateStatus($reference, $status, $gatewayResponse = '', $s
 }
 
 /**
- * Get payment record by reference
+ * Get payment record by transaction ID
  */
-function getPaymentByReference($reference) {
+function getPaymentByTransactionId($transactionId) {
     global $pdo;
     
     if (!$pdo) {
@@ -281,11 +228,11 @@ function getPaymentByReference($reference) {
     }
     
     try {
-        $stmt = $pdo->prepare("SELECT * FROM payments WHERE reference = ? LIMIT 1");
-        $stmt->execute([$reference]);
+        $stmt = $pdo->prepare("SELECT * FROM payments WHERE transaction_id = ? LIMIT 1");
+        $stmt->execute([$transactionId]);
         return $stmt->fetch();
     } catch (Throwable $e) {
-        error_log("Error getting payment by reference: " . $e->getMessage());
+        error_log("Error getting payment by transaction ID: " . $e->getMessage());
         return false;
     }
 }
@@ -301,8 +248,8 @@ function getPaymentByPaystackReference($paystackRef) {
     }
     
     try {
-        $stmt = $pdo->prepare("SELECT * FROM payments WHERE transaction_logs LIKE ? LIMIT 1");
-        $stmt->execute(["%\"paystack_reference\":\"{$paystackRef}\"%"]);
+        $stmt = $pdo->prepare("SELECT * FROM payments WHERE provider_reference = ? LIMIT 1");
+        $stmt->execute([$paystackRef]);
         return $stmt->fetch();
     } catch (Throwable $e) {
         error_log("Error getting payment by Paystack reference: " . $e->getMessage());
@@ -314,8 +261,6 @@ function getPaymentByPaystackReference($paystackRef) {
  * Send receipt email to customer
  */
 function sendReceiptEmail($toEmail, $reference, $amountNaira, $fileUrl = null) {
-    global $MAIL_FROM_ADDRESS, $MAIL_FROM_NAME;
-
     try {
         $amountStr = number_format((float)$amountNaira, 2);
         $dateStr = date('Y-m-d H:i:s');
@@ -457,8 +402,8 @@ HTML;
         $subject = "Payment Receipt - {$reference}";
         $headers = "MIME-Version: 1.0\r\n";
         $headers .= "Content-type: text/html; charset=UTF-8\r\n";
-        $headers .= "From: {$MAIL_FROM_NAME} <{$MAIL_FROM_ADDRESS}>\r\n";
-        $headers .= "Reply-To: {$MAIL_FROM_ADDRESS}\r\n";
+        $headers .= "From: " . MAIL_FROM_NAME . " <" . MAIL_FROM_ADDRESS . ">\r\n";
+        $headers .= "Reply-To: " . MAIL_FROM_ADDRESS . "\r\n";
         
         $success = @mail($toEmail, $subject, $html, $headers);
         

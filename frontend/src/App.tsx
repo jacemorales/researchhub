@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 // User pages
 import Home from "./user/Home";
 import Marketplace from "./user/pages/Marketplace";
-import PaymentScriptLoader from "./payments/p";
+import PaymentScriptLoader from "./payments/PaymentScriptLoader";
 
 // Admin pages (placeholders for now)
 // import AdminDashboard from "./admin/pages/Dashboard";
