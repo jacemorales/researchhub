@@ -37,11 +37,11 @@ async function hasInternet() {
     }
 }
 
-const paymentFormContainer = document.getElementById('payment-form-container');
-const loaderContainer = document.getElementById('loader-container');
+const paymentFormContainer =document.querySelector('.payment-form-container');
+const loaderContainer =document.querySelector('.loader-container');
 const statusText = document.querySelector('.status-text');
-const notification = document.getElementById('notification');
-const paymentResult = document.getElementById('payment-result');
+const notification =document.querySelector('#notification');
+const paymentResult =document.querySelector('#payment-result');
 function showLoader(msg = 'Processing... please wait') {
         console.log('Showing loader:', msg);
         if (statusText) statusText.textContent = msg;
@@ -140,10 +140,10 @@ window.retryPayment = async function () {
 
 // === State management ===
 function getCurrentState() {
-    const formVisible = document.getElementById('payment-form-container').style.display !== 'none';
-    const loaderVisible = document.getElementById('loader-container').style.display !== 'none';
-    const resultVisible = document.getElementById('payment-result').style.display !== 'none';
-    const errorVisible = document.getElementById('payment-error-state')?.style.display !== 'none';
+    const formVisible =document.querySelector('.payment-form-container').style.display !== 'none';
+    const loaderVisible =document.querySelector('.loader-container').style.display !== 'none';
+    const resultVisible =document.querySelector('#payment-result').style.display !== 'none';
+    const errorVisible =document.querySelector('#payment-error-state')?.style.display !== 'none';
     
     if (loaderVisible) {
         const statusText = document.querySelector('.status-text')?.textContent || '';
@@ -159,15 +159,15 @@ function getCurrentState() {
 }
 
 function showForm() {
-    document.getElementById('payment-form-container').style.display = 'block';
-    document.getElementById('loader-container').style.display = 'none';
-    document.getElementById('payment-result').style.display = 'none';
+   document.querySelector('.payment-form-container').style.display = 'block';
+   document.querySelector('.loader-container').style.display = 'none';
+   document.querySelector('#payment-result').style.display = 'none';
     hideErrorState();
     enablePayButton();
 }
 
 function enablePayButton() {
-    const payBtn = document.getElementById('pay-btn');
+    const payBtn =document.querySelector('#pay-btn');
     if (payBtn) {
         payBtn.disabled = false;
         payBtn.classList.remove('processing');
@@ -175,7 +175,7 @@ function enablePayButton() {
 }
 
 function disablePayButton() {
-    const payBtn = document.getElementById('pay-btn');
+    const payBtn =document.querySelector('#pay-btn');
     if (payBtn) {
         payBtn.disabled = true;
         payBtn.classList.add('processing');
@@ -238,18 +238,18 @@ const POLL_INTERVAL = 2000;
 const POLL_TIMEOUT = 1000 * 60 * 3;
 
 window.initPaymentModal = () => {
-    const paymentForm = document.getElementById('payment-form');
+    const paymentForm =document.querySelector('#payment-form');
     if (!paymentForm) {
         console.error("Payment form not found. Aborting payment script.");
         return;
     }
 
-    const summaryPriceEl = document.getElementById('summaryPrice');
-    const emailInput = document.getElementById('email');
-    const customerNameInput = document.getElementById('fullName');
-    const feeAmount = document.getElementById('fee-amount');
-    const totalAmount = document.getElementById('total-amount');
-    const payBtn = document.getElementById('pay-btn');
+    const summaryPriceEl =document.querySelector('#summaryPrice');
+    const emailInput =document.querySelector('#email');
+    const customerNameInput =document.querySelector('#fullName');
+    const feeAmount =document.querySelector('#fee-amount');
+    const totalAmount =document.querySelector('#total-amount');
+    const payBtn =document.querySelector('#pay-btn');
 
     let currentPaystackRef = null;
     let popupWindow = null;
@@ -261,7 +261,7 @@ window.initPaymentModal = () => {
         const amount = parseFloat(priceText) || 0;
         const fee = amount * PAYSTACK_PERCENTAGE_FEE;
         const total = amount + fee;
-
+        
         if (feeAmount) feeAmount.textContent = `₦${fmt(fee)}`;
         if (totalAmount) totalAmount.textContent = `₦${fmt(total)}`;
         if (payBtn) payBtn.textContent = `Pay ₦${fmt(total)}`;
@@ -356,9 +356,9 @@ window.initPaymentModal = () => {
         setPaystackRef(paystackRef);
 
         const activeSession = getActiveReferenceSession();
-        const payload = {
-            email,
-            amount,
+        const payload = { 
+            email, 
+            amount, 
             reference: paystackRef,
             file_id: fileId,
             customer_name: customerName,
@@ -551,6 +551,15 @@ window.initPaymentModal = () => {
 
     function renderResult(status, reference, data = null) {
         console.log('Rendering result:', status, reference, data);
+
+        const formContainer = document.querySelector('.payment-form-container');
+        const loader = document.querySelector('.loader-container');
+        const resultEl = document.querySelector('#payment-result');
+
+        if (!resultEl || !formContainer || !loader) {
+            console.error('Could not find payment UI elements to render result.');
+            return;
+        }
         
         const statusMap = {
             success: { color: '#47c363', msg: 'Payment successful!' },
@@ -562,12 +571,12 @@ window.initPaymentModal = () => {
         const cfg = statusMap[status] || { color: '#fc544b', msg: 'An error occurred.' };
         const amountNaira = data && data.amount ? (data.amount / 100).toFixed(2) : '';
 
-        paymentFormContainer.style.display = 'none';
-        loaderContainer.style.display = 'none';
-        paymentResult.style.display = 'block';
+        formContainer.style.display = 'none';
+        loader.style.display = 'none';
+        resultEl.style.display = 'block';
         hideErrorState();
         
-        paymentResult.innerHTML = `
+        resultEl.innerHTML = `
             <div class="payment-result ${status}">
                 <h3 style="color:${cfg.color}">${cfg.msg}</h3>
                 <p><strong>Reference:</strong> ${reference}</p>
@@ -581,26 +590,26 @@ window.initPaymentModal = () => {
             </div>
         `;
 
-        const checkBtn = document.getElementById('check-status');
+        const checkBtn = resultEl.querySelector('#check-status');
         if (checkBtn) {
             checkBtn.addEventListener('click', () => pollVerification(reference));
         }
 
-        const tryBtn = document.getElementById('try-again');
+        const tryBtn = resultEl.querySelector('#try-again');
         if (tryBtn) {
             tryBtn.addEventListener('click', () => {
-                paymentResult.style.display = 'none';
-                paymentFormContainer.style.display = 'block';
+                resultEl.style.display = 'none';
+                formContainer.style.display = 'block';
                 clearPaystackRef();
                 enablePayButton();
             });
         }
 
-        const newPaymentBtn = document.getElementById('new-payment');
+        const newPaymentBtn = resultEl.querySelector('#new-payment');
         if (newPaymentBtn) {
             newPaymentBtn.addEventListener('click', () => {
-                paymentResult.style.display = 'none';
-                paymentFormContainer.style.display = 'block';
+                resultEl.style.display = 'none';
+                formContainer.style.display = 'block';
                 updatePaymentDetails();
                 clearPaystackRef();
                 enablePayButton();

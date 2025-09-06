@@ -7,7 +7,7 @@ function showErrorState(type, message, details = '') {
     if (!errorEl) {
         errorEl = document.createElement('div');
         errorEl.id = 'payment-error-state';
-        document.querySelector('.payment-card')?.appendChild(errorEl);
+        document.querySelector('.modal-body')?.appendChild(errorEl);
     }
 
     const labels = {
