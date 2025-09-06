@@ -1,191 +1,150 @@
-import React, { useState, useEffect } from "react";
-import gapi from "gapi-script";
-import { initGoogleClient, signInToGoogle, signOutFromGoogle, fetchDriveFiles } from "./utils/googleApi";
-import { useCUD } from "../hooks/useCUD";
-import type { AcademicFile, Price } from "../hooks/useData";
+<?php
+require_once __DIR__.'/includes/config.php';
+require_once __DIR__.'/includes/drive_api.php';
 
-interface DriveFile {
-    id: string;
-    name: string;
-    mimeType: string;
-    size: string;
-    modifiedTime: string;
-    webViewLink: string;
+// Handle logout
+if (isset($_GET['action']) && $_GET['action'] === 'logout') {
+    googleDriveLogout();
+    header('Location: index.php');
+    exit;
 }
 
-const AdminHome: React.FC = () => {
-    const [isSignedIn, setIsSignedIn] = useState(false);
-    const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
-    const [selectedFile, setSelectedFile] = useState<DriveFile | null>(null);
-    const [fileDetails, setFileDetails] = useState<Partial<AcademicFile>>({});
-    const { academic_files, loading, error } = useCUD();
+// Handle file selection
+if (isset($_POST['select_file']) && isset($_POST['file_id'])) {
+    $selectedFile = getFileDetails($_POST['file_id']);
+    if ($selectedFile) {
+        $_SESSION['selected_file'] = $selectedFile;
+    }
+}
 
-    useEffect(() => {
-        initGoogleClient(() => {
-            const authInstance = gapi.auth2.getAuthInstance();
-            setIsSignedIn(authInstance.isSignedIn.get());
-            if (authInstance.isSignedIn.get()) {
-                loadDriveFiles();
-            }
-        });
-    }, []);
+// Get drive files
+$driveResult = fetchDriveFiles();
+?>
+<?php include __DIR__.'/includes/admin_header.php'; ?>
 
-    const loadDriveFiles = async () => {
-        const files = await fetchDriveFiles();
-        setDriveFiles(files);
-    };
-
-    const handleSignIn = async () => {
-        await signInToGoogle();
-        setIsSignedIn(true);
-        loadDriveFiles();
-    };
-
-    const handleSignOut = async () => {
-        await signOutFromGoogle();
-        setIsSignedIn(false);
-    };
-
-    const handleFileSelect = (file: DriveFile) => {
-        setSelectedFile(file);
-        setFileDetails({
-            drive_file_id: file.id,
-            file_name: file.name,
-            file_type: file.mimeType,
-            file_size: file.size,
-            modified_date: file.modifiedTime,
-            price: { usd: 0, ngn: 0 }
-        });
-    };
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        setFileDetails({ ...fileDetails, [name]: value });
-    };
-
-    const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setFileDetails({
-            ...fileDetails,
-            price: {
-                ...(fileDetails.price as Price),
-                [name]: parseFloat(value),
-            },
-        });
-    };
-
-    const handleFormSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        await academic_files.create(fileDetails);
-    };
-
-    const clearForm = () => {
-        setSelectedFile(null);
-        setFileDetails({});
-    };
-
-    return (
-        <>
-            <div className="drive-content">
-                {!isSignedIn ? (
-                    <div className="auth-prompt">
-                    <div className="auth-card">
-                        <div className="auth-icon">
-                            <i className="fab fa-google-drive"></i>
+        <div class="drive-content">
+            <?php if (!isset($_SESSION['google_access_token'])): ?>
+                <div class="auth-prompt">
+                    <div class="auth-card">
+                        <div class="auth-icon">
+                            <i class="fab fa-google-drive"></i>
                         </div>
                         <h2>Connect to Google Drive</h2>
                         <p>Sign in to access your documents and automatically fill file details</p>
-                        <button onClick={handleSignIn} className="btn-auth">
-                            <i className="fab fa-google"></i> Sign in with Google
-                        </button>
+                        <a href="<?= getGoogleClient()->createAuthUrl() ?>" class="btn-auth">
+                            <i class="fab fa-google"></i> Sign in with Google
+                        </a>
                     </div>
                 </div>
-            ) : (
-                <div className="content-grid">
-                    <div className="file-selection-section">
-                        <div className="section-header">
-                            <h2><i className="fab fa-google-drive"></i> Your Drive Files</h2>
-                            <div className="header-actions">
-                                <div className="search-box">
-                                    <i className="fas fa-search"></i>
-                                    <input type="text" id="fileSearch" placeholder="Search files..." />
+            <?php elseif (isset($driveResult['error'])): ?>
+                <div class="alert error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <?= $driveResult['error'] ?>
+                    <?php if (isset($driveResult['auth_url'])): ?>
+
+                    <?php endif; ?>
+                </div>
+                <a href="<?= $driveResult['auth_url'] ?>" class="btn-auth">
+                            <i class="fab fa-google"></i> Re-authenticate
+                        </a>
+            <?php else: ?>
+                <div class="content-grid">
+                    <!-- File Selection Section -->
+                    <div class="file-selection-section">
+                        <div class="section-header">
+                            <h2><i class="fab fa-google-drive"></i> Your Drive Files</h2>
+                            <div class="header-actions">
+                                <div class="search-box">
+                                    <i class="fas fa-search"></i>
+                                    <input type="text" id="fileSearch" placeholder="Search files...">
                                 </div>
-                                <button id="refreshDrive" className="btn-icon" title="Refresh files" onClick={loadDriveFiles}>
-                                    <i className="fas fa-sync-alt"></i>
+                                <button id="refreshDrive" class="btn-icon" title="Refresh files">
+                                    <i class="fas fa-sync-alt"></i>
                                 </button>
                             </div>
                         </div>
 
-                        <div className="drive-file-list" id="fileList">
-                            {driveFiles.map((file) => (
-                                <div className="drive-file" key={file.id} data-file-id={file.id} data-file-name={file.name}>
-                                    <div className="file-icon">
-                                        <i className={`fas fa-file`}></i>
-                                    </div>
-                                    <div className="file-details">
-                                        <h3>{file.name}</h3>
-                                        <div className="file-meta">
-                                            <span><i className="fas fa-calendar"></i> {new Date(file.modifiedTime).toLocaleDateString()}</span>
-                                            <span><i className="fas fa-weight-hanging"></i> {file.size}</span>
-                                            <span><i className="fas fa-file"></i> {file.mimeType}</span>
-                                        </div>
-                                    </div>
-                                    <div className="file-actions">
-                                        <button className="btn-select-file" onClick={() => handleFileSelect(file)}>
-                                            <i className="fas fa-check"></i> Select
-                                        </button>
-                                        <a href={file.webViewLink} target="_blank" rel="noreferrer" className="btn-view" title="View in Drive">
-                                            <i className="fas fa-external-link-alt"></i>
-                                        </a>
+                        <div class="drive-file-list" id="fileList">
+                            <?php foreach ($driveResult as $file): ?>
+                            <div class="drive-file" data-file-id="<?= $file['id'] ?>" data-file-name="<?= htmlspecialchars($file['name']) ?>">
+                                <div class="file-icon">
+                                    <i class="fas <?= getFileIconClass($file['mimeType']) ?>"></i>
+                                </div>
+                                <div class="file-details">
+                                    <h3><?= htmlspecialchars($file['name']) ?></h3>
+                                    <div class="file-meta">
+                                        <span><i class="fas fa-calendar"></i> <?= date('M d, Y', strtotime($file['modifiedTime'])) ?></span>
+                                        <span><i class="fas fa-weight-hanging"></i> <?= formatFileSize($file['size']) ?></span>
+                                        <span><i class="fas fa-file"></i> <?= getFileType($file['mimeType'], $file['name']) ?></span>
                                     </div>
                                 </div>
-                            ))}
+                                <div class="file-actions">
+                                    <button class="btn-select-file" onclick="selectFile('<?= $file['id'] ?>', '<?= htmlspecialchars($file['name']) ?>', '<?= $file['mimeType'] ?>', '<?= $file['size'] ?>', '<?= $file['modifiedTime'] ?>')">
+                                        <i class="fas fa-check"></i> Select
+                                    </button>
+                                    <a href="<?= $file['webViewLink'] ?>" target="_blank" class="btn-view" title="View in Drive">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
                         </div>
                     </div>
 
-                    <div className="file-details-section">
-                        <div className="section-header">
-                            <h2><i className="fas fa-edit"></i> File Details</h2>
-                            {selectedFile && (
-                                <div className="selected-file-info" id="selectedFileInfo">
-                                    <span className="selected-label">Selected:</span>
-                                    <span className="selected-name" id="selectedFileName">{selectedFile.name}</span>
-                                </div>
-                            )}
+                    <!-- File Details Form Section -->
+                    <div class="file-details-section">
+                        <div class="section-header">
+                            <h2><i class="fas fa-edit"></i> File Details</h2>
+                            <div class="selected-file-info" id="selectedFileInfo" style="display: none;">
+                                <span class="selected-label">Selected:</span>
+                                <span class="selected-name" id="selectedFileName"></span>
+                            </div>
                         </div>
 
-                        <form className="file-details-form" id="fileDetailsForm" onSubmit={handleFormSubmit}>
-                            <input type="hidden" id="fileId" name="id" value={fileDetails.id || ""} />
-                            <input type="hidden" id="fileDriveId" name="drive_file_id" value={fileDetails.drive_file_id || ""} />
-                            <div className="form-grid">
-                                <div className="form-group">
-                                    <label htmlFor="fileName"><i className="fas fa-file"></i> File Name</label>
-                                    <input type="text" id="fileName" name="file_name" placeholder="Enter file name" required readOnly value={fileDetails.file_name || ""} />
+                        <form class="file-details-form" id="fileDetailsForm">
+                            <input type="hidden" id="fileId" name="fileId" value="">
+                            <input type="hidden" id="fileDriveId" name="fileDriveId" value="">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="fileName">
+                                        <i class="fas fa-file"></i> File Name
+                                    </label>
+                                    <input type="text" id="fileName" name="fileName" placeholder="Enter file name" required readonly>
                                 </div>
 
-                                <div className="form-group">
-                                    <label htmlFor="fileType"><i className="fas fa-tag"></i> File Type</label>
-                                    <input type="text" id="fileType" name="file_type" placeholder="File type" readOnly value={fileDetails.file_type || ""} />
+                                <div class="form-group">
+                                    <label for="fileType">
+                                        <i class="fas fa-tag"></i> File Type
+                                    </label>
+                                    <input type="text" id="fileType" name="fileType" placeholder="File type" readonly>
                                 </div>
 
-                                <div className="form-group">
-                                    <label htmlFor="fileSize"><i className="fas fa-weight-hanging"></i> File Size</label>
-                                    <input type="text" id="fileSize" name="file_size" placeholder="File size" readOnly value={fileDetails.file_size || ""} />
+                                <div class="form-group">
+                                    <label for="fileSize">
+                                        <i class="fas fa-weight-hanging"></i> File Size
+                                    </label>
+                                    <input type="text" id="fileSize" name="fileSize" placeholder="File size" readonly>
                                 </div>
 
-                                <div className="form-group">
-                                    <label htmlFor="fileDate"><i className="fas fa-calendar"></i> Modified Date</label>
-                                    <input type="text" id="fileDate" name="modified_date" placeholder="Modified date" readOnly value={fileDetails.modified_date || ""} />
-                                 </div>
-
-                                <div className="form-group full-width">
-                                    <label htmlFor="fileDescription"><i className="fas fa-align-left"></i> Description</label>
-                                    <textarea id="fileDescription" name="description" placeholder="Enter file description" rows={3} onChange={handleInputChange} value={fileDetails.description || ""}></textarea>
+                                <div class="form-group">
+                                    <label for="fileDate">
+                                        <i class="fas fa-calendar"></i> Modified Date
+                                    </label>
+                                    <input type="text" id="fileDate" name="fileDate" placeholder="Modified date" readonly>
                                 </div>
 
-                                <div className="form-group">
-                                    <label htmlFor="fileCategory"><i className="fas fa-folder"></i> Category</label>
-                                    <select id="fileCategory" name="category" required onChange={handleInputChange} value={fileDetails.category || ""}>
+                                <div class="form-group full-width">
+                                    <label for="fileDescription">
+                                        <i class="fas fa-align-left"></i> Description
+                                    </label>
+                                    <textarea id="fileDescription" name="fileDescription" placeholder="Enter file description" rows="3"></textarea>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="fileCategory">
+                                        <i class="fas fa-folder"></i> Category
+                                    </label>
+                                    <select id="fileCategory" name="fileCategory" required>
                                         <option value="">Select category</option>
                                         <option value="research">Research Paper</option>
                                         <option value="thesis">Thesis</option>
@@ -197,48 +156,53 @@ const AdminHome: React.FC = () => {
                                     </select>
                                 </div>
 
-                                <div className="form-group">
-                                    <label htmlFor="fileLevel"><i className="fas fa-graduation-cap"></i> Level</label>
-                                    <select id="fileLevel" name="level" required onChange={handleInputChange} value={fileDetails.level || ""}>
+                                <div class="form-group">
+                                    <label for="fileLevel">
+                                        <i class="fas fa-graduation-cap"></i> Level
+                                    </label>
+                                    <select id="fileLevel" name="fileLevel" required>
                                         <option value="">Select level</option>
                                         <option value="undergraduate">Undergraduate</option>
                                         <option value="postgraduate">Postgraduate</option>
                                     </select>
                                 </div>
 
-                                <div className="form-group">
-                                    <label htmlFor="filePrice"><i className="fas fa-dollar-sign"></i> Price (USD)</label>
-                                    <div className="price-input">
+                                <div class="form-group">
+                                    <label for="filePrice">
+                                        <i class="fas fa-dollar-sign"></i> Price (USD)
+                                    </label>
+                                    <div class="price-input">
                                         <span>$</span>
-                                        <input type="number" id="filePrice" name="usd" placeholder="0.00" step="0.01" min="0" onChange={handlePriceChange} value={fileDetails.price?.usd || ""} />
+                                        <input type="number" id="filePrice" name="filePrice" placeholder="0.00" step="0.01" min="0">
                                     </div>
                                 </div>
 
-                                <div className="form-group">
-                                    <label htmlFor="filePriceNGN"><i className="fas fa-naira-sign"></i> Price (NGN)</label>
-                                    <div className="price-input">
+                                <div class="form-group">
+                                    <label for="filePriceNGN">
+                                        <i class="fas fa-naira-sign"></i> Price (NGN)
+                                    </label>
+                                    <div class="price-input">
                                         <span>₦</span>
-                                        <input type="number" id="filePriceNGN" name="ngn" placeholder="0.00" step="0.01" min="0" onChange={handlePriceChange} value={fileDetails.price?.ngn || ""} />
+                                        <input type="number" id="filePriceNGN" name="filePriceNGN" placeholder="0.00" step="0.01" min="0">
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="form-actions">
-                                <button type="submit" className="btn btn-primary" disabled={loading}>
-                                    {loading ? "Saving..." : <><i className="fas fa-save"></i> Save Details</>}
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Save Details
                                 </button>
-                                <button type="button" className="btn btn-secondary" onClick={clearForm}>
-                                    <i className="fas fa-eraser"></i> Clear Form
+                                <button type="button" class="btn btn-secondary" onclick="clearForm()">
+                                    <i class="fas fa-eraser"></i> Clear Form
                                 </button>
                             </div>
-                            {error && <p className="error">{error}</p>}
                         </form>
                     </div>
                 </div>
-            )}
+            <?php endif; ?>
         </div>
-        </>
-    );
-};
+    </div>
 
-export default AdminHome;
+    <script src="assets/js/admin.js"></script>
+</body>
+</html>

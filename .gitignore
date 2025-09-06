@@ -1,19 +1,9 @@
-# Node modules
-node_modules
+# Dependencies
 /node_modules
-/node_modules/
 admin/node_modules/
 user/node_modules/
-
-# Vendor folders
 admin/vendor/
 vendor/
-
-# Package manager files
-package.json
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
 
 # Build artifacts
 dist
