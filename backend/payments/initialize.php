@@ -5,47 +5,26 @@ require_once __DIR__ . '/functions.php';
 
 try {
     $input = json_decode(file_get_contents('php://input'), true) ?? [];
+
+    // Get and validate all required fields
     $email = filter_var($input['email'] ?? '', FILTER_VALIDATE_EMAIL);
     $amountInput = (float)($input['amount'] ?? 0);
     $paystackRef = $input['reference'] ?? null;
-    $referenceStat = $input['reference_stat'] ?? null;
+    $fileId = (int)($input['file_id'] ?? 0);
+    $customerName = trim($input['customer_name'] ?? '');
 
-    // Validate required fields
-    if (!$email) {
+    if (!$email || $amountInput <= 0 || !$paystackRef || $fileId <= 0 || empty($customerName)) {
         http_response_code(400);
         echo json_encode([
             'status' => 'error',
             'type' => 'developer',
-            'message' => 'Invalid email address provided'
+            'message' => 'Missing or invalid parameters'
         ]);
         ob_end_flush();
         exit;
     }
 
-    if ($amountInput <= 0) {
-        http_response_code(400);
-        echo json_encode([
-            'status' => 'error',
-            'type' => 'developer',
-            'message' => 'Invalid amount provided'
-        ]);
-        ob_end_flush();
-        exit;
-    }
-
-    if (!$paystackRef || !$referenceStat) {
-        http_response_code(400);
-        echo json_encode([
-            'status' => 'error',
-            'type' => 'developer',
-            'message' => 'Missing reference parameters'
-        ]);
-        ob_end_flush();
-        exit;
-    }
-
-    // Check if Paystack secret is configured
-    if (empty($_ENV['PAYSTACK_SECRET'])) {
+    if (empty(PAYSTACK_SECRET)) {
         http_response_code(500);
         echo json_encode([
             'status' => 'error',
@@ -59,21 +38,21 @@ try {
     // Calculate final amount with fee
     $finalAmountNaira = ceil($amountInput * 1.015);
     
-    // Create or get payment row
-    $paymentRow = createOrGetPaymentRow($referenceStat, $email, $finalAmountNaira, $paystackRef);
+    // Create a new payment row
+    $paymentRow = createPaymentRow($fileId, $customerName, $email, $finalAmountNaira, $paystackRef);
     
     if (!$paymentRow) {
         http_response_code(500);
         echo json_encode([
             'status' => 'error',
             'type' => 'developer',
-            'message' => 'Database error occurred'
+            'message' => 'Database error occurred while creating payment record'
         ]);
         ob_end_flush();
         exit;
     }
 
-    $ourReference = $paymentRow['reference'];
+    $transactionId = $paymentRow['transaction_id'];
     $amountKobo = $finalAmountNaira * 100;
 
     // Prepare payload for Paystack
@@ -91,7 +70,7 @@ try {
         CURLOPT_POST => true,
         CURLOPT_POSTFIELDS => $payload,
         CURLOPT_HTTPHEADER => [
-            "Authorization: Bearer {$_ENV['PAYSTACK_SECRET']}",
+            "Authorization: Bearer " . PAYSTACK_SECRET,
             "Content-Type: application/x-www-form-urlencoded"
         ],
         CURLOPT_TIMEOUT => 15,
@@ -105,8 +84,8 @@ try {
     $curlError = curl_error($ch);
     curl_close($ch);
 
-    // Check for cURL errors
     if ($response === false) {
+        appendLogAndUpdateStatus($transactionId, 'failed_init', "cURL Error: {$curlError}", false);
         http_response_code(500);
         echo json_encode([
             'status' => 'error',
@@ -118,10 +97,10 @@ try {
         exit;
     }
 
-    // Parse Paystack response
     $paystackData = json_decode($response, true);
     
     if ($paystackData === null) {
+        appendLogAndUpdateStatus($transactionId, 'failed_init', 'Invalid JSON response from Paystack', false);
         http_response_code(500);
         echo json_encode([
             'status' => 'error',
@@ -132,31 +111,22 @@ try {
         exit;
     }
 
-    // Check if initialization was successful
     if (!empty($paystackData['status']) && $paystackData['status'] === true) {
-        // Log successful initialization
-        appendLogAndUpdateStatus($ourReference, 'initialized', 'Successfully sent to Paystack', false);
+        appendLogAndUpdateStatus($transactionId, 'initialized', 'Successfully sent to Paystack', false);
         
         echo json_encode([
             'status' => 'success',
             'data' => [
                 'authorization_url' => $paystackData['data']['authorization_url'],
-                'reference' => $paystackRef,
-                'amount_naira' => $finalAmountNaira,
-                'our_reference' => $ourReference
+                'provider_reference' => $paystackRef,
+                'transaction_id' => $transactionId,
+                'amount_naira' => $finalAmountNaira
             ]
         ]);
     } else {
-        // Handle Paystack error
         $errorMessage = $paystackData['message'] ?? 'Payment initialization failed';
-        $errorDetails = null;
-        
-        if (isset($paystackData['data']) && is_array($paystackData['data'])) {
-            $errorDetails = json_encode($paystackData['data']);
-        }
-
-        // Log failed initialization
-        appendLogAndUpdateStatus($ourReference, 'failed_init', $errorMessage, false);
+        $errorDetails = isset($paystackData['data']) ? json_encode($paystackData['data']) : null;
+        appendLogAndUpdateStatus($transactionId, 'failed_init', $errorMessage, false);
 
         http_response_code($httpCode >= 400 ? $httpCode : 400);
         echo json_encode([
@@ -168,7 +138,6 @@ try {
     }
 
 } catch (Throwable $e) {
-    // Handle any unexpected errors
     error_log("Initialize payment error: " . $e->getMessage());
     
     http_response_code(500);

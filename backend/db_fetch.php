@@ -4,11 +4,8 @@ header("Content-Type: application/json");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
-// Database Configuration
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'research_hub');
-define('DB_USER', 'root');
-define('DB_PASS', '');
+// Include the centralized database configuration
+require_once 'config.php';
 
 class Database {
     private $host;

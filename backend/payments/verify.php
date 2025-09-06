@@ -17,7 +17,7 @@ try {
         exit;
     }
 
-    if (empty($_ENV['PAYSTACK_SECRET'])) {
+    if (empty(PAYSTACK_SECRET)) {
         http_response_code(500);
         echo json_encode([
             'status' => 'error',
@@ -29,11 +29,11 @@ try {
     }
 
     // Initialize cURL for Paystack verification
-    $ch = curl_init("https://api.paystack.co/transaction/verify/{$reference}");
+    $ch = curl_init("https://api.paystack.co/transaction/verify/" . rawurlencode($reference));
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_HTTPHEADER => [
-            "Authorization: Bearer {$_ENV['PAYSTACK_SECRET']}",
+            "Authorization: Bearer " . PAYSTACK_SECRET,
             "Content-Type: application/json"
         ],
         CURLOPT_TIMEOUT => 15,
@@ -46,7 +46,6 @@ try {
     $curlError = curl_error($ch);
     curl_close($ch);
 
-    // Check for cURL errors
     if ($response === false) {
         http_response_code(500);
         echo json_encode([
@@ -59,7 +58,6 @@ try {
         exit;
     }
 
-    // Parse Paystack response
     $paystackData = json_decode($response, true);
     
     if ($paystackData === null) {
@@ -80,10 +78,9 @@ try {
         $transactionData = $paystackData['data'];
         $transactionStatus = strtolower($transactionData['status'] ?? 'unknown');
         
-        // Update our internal record if we have it
         if ($paymentRecord) {
             appendLogAndUpdateStatus(
-                $paymentRecord['reference'], 
+                $paymentRecord['transaction_id'],
                 $transactionStatus, 
                 json_encode($transactionData), 
                 false
@@ -92,7 +89,6 @@ try {
 
         switch ($transactionStatus) {
             case 'success':
-                // Send receipt email if successful
                 if ($paymentRecord && isset($transactionData['customer']['email'])) {
                     $amountNaira = ($transactionData['amount'] ?? 0) / 100;
                     sendReceiptEmail(
@@ -117,23 +113,13 @@ try {
                 break;
 
             case 'failed':
-                echo json_encode([
-                    'status' => 'success',
-                    'payment_status' => 'failed',
-                    'data' => [
-                        'reference' => $reference,
-                        'gateway_response' => $transactionData['gateway_response'] ?? 'Payment failed'
-                    ]
-                ]);
-                break;
-
             case 'abandoned':
                 echo json_encode([
                     'status' => 'success',
-                    'payment_status' => 'abandoned',
+                    'payment_status' => $transactionStatus,
                     'data' => [
                         'reference' => $reference,
-                        'message' => 'Payment was abandoned'
+                        'message' => $transactionData['gateway_response'] ?? 'Payment was not completed'
                     ]
                 ]);
                 break;
@@ -151,13 +137,11 @@ try {
                 break;
         }
     } else {
-        // Paystack returned an error
         $errorMessage = $paystackData['message'] ?? 'Unable to verify payment';
         
-        // Log the verification failure if we have the payment record
         if ($paymentRecord) {
             appendLogAndUpdateStatus(
-                $paymentRecord['reference'], 
+                $paymentRecord['transaction_id'],
                 'verification_failed', 
                 $errorMessage, 
                 false
@@ -173,7 +157,6 @@ try {
     }
 
 } catch (Throwable $e) {
-    // Handle any unexpected errors
     error_log("Verify payment error: " . $e->getMessage());
     
     http_response_code(500);

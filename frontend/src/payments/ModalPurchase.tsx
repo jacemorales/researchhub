@@ -3,6 +3,13 @@ import { useEffect, useState } from "react";
 import { useData } from "../hooks/useData";
 import type { AcademicFile } from "../hooks/useData";
 
+// This type definition is necessary for the initPaymentModal function on the window object
+declare global {
+  interface Window {
+    initPaymentModal?: () => void;
+  }
+}
+
 interface ModalProps {
   onClose: () => void;
   data: AcademicFile | null;
@@ -14,22 +21,34 @@ const ModalPurchase = ({ onClose, data }: ModalProps) => {
 
   // load external scripts when this modal is mounted
   useEffect(() => {
-    const scripts = ["errorStates.js", "main.js"];
-    const els: HTMLScriptElement[] = [];
+    const scriptMap = [
+      { id: "payment-error-states-script", src: "/src/payments/assets/errorStates.js" },
+      { id: "payment-main-script", src: "/src/payments/assets/main.js" },
+    ];
 
-    scripts.forEach((file) => {
+    const loadScript = (scriptInfo: {id: string, src: string}, callback: () => void) => {
+      if (document.getElementById(scriptInfo.id)) {
+        if (callback) callback();
+        return;
+      }
       const el = document.createElement("script");
-      el.src = `/payments/assets/${file}`;
+      el.id = scriptInfo.id;
+      el.src = scriptInfo.src;
       el.async = true;
+      el.onload = callback;
       document.body.appendChild(el);
-      els.push(el);
+    };
+
+    // Load scripts sequentially and then initialize the modal
+    loadScript(scriptMap[0], () => {
+      loadScript(scriptMap[1], () => {
+        if (window.initPaymentModal) {
+          window.initPaymentModal();
+        }
+      });
     });
 
-    return () => {
-      // cleanup on unmount
-      els.forEach((el) => document.body.removeChild(el));
-    };
-  }, []);
+  }, [data]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,19 +76,20 @@ const ModalPurchase = ({ onClose, data }: ModalProps) => {
 
           <div className="modal-body">
         {status === "idle" && (
-            <form id="checkoutForm" onSubmit={handleSubmit}>
+          <>
+            <form className="payment-form-container" id="payment-form" data-file-id={data?.id} onSubmit={handleSubmit}>
               <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="fullName">
                     {website_config?.PURCHASE_NAME_LABEL}
                   </label>
-                  <input type="text" id="fullName" name="customer_name" required />
+                  <input type="text" id="fullName" name="customer_name" value="jace" />
                 </div>
                 <div className="form-group">
                   <label htmlFor="email">
                     {website_config?.PURCHASE_EMAIL_LABEL}
                   </label>
-                  <input type="email" id="email" name="customer_email" required />
+                  <input type="email" id="email" name="customer_email" value="jace@example.com" />
                 </div>
               </div>
 
@@ -77,7 +97,7 @@ const ModalPurchase = ({ onClose, data }: ModalProps) => {
                 <label htmlFor="phone">
                   {website_config?.PURCHASE_PHONE_LABEL}
                 </label>
-                <input type="tel" id="phone" name="customer_phone" />
+                <input type="tel" id="phone" name="customer_phone" value="123-456-7890" />
               </div>
 
               <div className="payment-summary">
@@ -88,15 +108,15 @@ const ModalPurchase = ({ onClose, data }: ModalProps) => {
                 </div>
                 <div className="summary-row">
                   <span>{website_config?.PURCHASE_PRICE_LABEL}:</span>
-                  <span id="summaryPrice">${Number(data?.price).toFixed(2)}</span>
+                  <span className="amount" id="summaryPrice">${Number(data?.price).toFixed(2)}</span>
                 </div>
                 <div className="summary-row">
                   <span>{website_config?.PURCHASE_TAX_LABEL}:</span>
-                  <span id="summaryTax">$0.00</span>
+                  <span id="fee-amount">$0.00</span>
                 </div>
                 <div className="summary-row total">
                   <span>{website_config?.PURCHASE_TOTAL_LABEL}:</span>
-                  <span id="summaryTotal">${Number(data?.price).toFixed(2)}</span>
+                  <span id="total-amount">${Number(data?.price).toFixed(2)}</span>
                 </div>
               </div>
 
@@ -135,8 +155,8 @@ const ModalPurchase = ({ onClose, data }: ModalProps) => {
               </div>
 
               <div className="form-actions">
-                <button type="submit" className="btn btn-primary">
-                  <i className="fas fa-lock"></i>{" "}
+                <button type="submit" className="btn btn-primary" id="pay-btn">
+                  <i className="fas fa-lock"></i>
                   {website_config?.PURCHASE_BUTTON}
                 </button>
                 <button type="button" className="btn btn-secondary" onClick={onClose}>
@@ -146,6 +166,32 @@ const ModalPurchase = ({ onClose, data }: ModalProps) => {
             
             
 
+            </form>
+            <div id="notification" className="slide-notification"></div>
+          </>
+        )}
+
+        {status === "processing" && (
+          <>
+          <div className="payment-status loader-container">
+            <div className="status-icon">
+              <i className="fas fa-spinner fa-spin"></i>
+            </div>
+            <p className="status-text">Processing... please wait</p>
+          </div>
+          </>
+        )}
+<div id="payment-result"></div>
+
+      </div>
+       </div>
+          </div>
+  );
+};
+
+export default ModalPurchase;
+
+{/*
               <div className="payment-card">
     <div className="payment-header">
       <h2>Research Hub — Payment</h2>
@@ -179,38 +225,4 @@ const ModalPurchase = ({ onClose, data }: ModalProps) => {
 
     <div id="payment-result"></div>
   </div>
-            </form>
-           
-        )}
-
-        {status === "processing" && (
-          <div className="payment-status">
-            <div className="status-icon">
-              <i className="fas fa-spinner fa-spin"></i>
-            </div>
-            <h3>{website_config?.PURCHASE_PROCESSING}</h3>
-            <p>{website_config?.PURCHASE_PROCESSING_MSG}</p>
-          </div>
-        )}
-
-        {status === "done" && (
-          <div className="notification">
-            <div className="notification-icon">
-              <i className="fas fa-check"></i>
-            </div>
-            <div className="notification-content">
-              <h4>Purchase Successful!</h4>
-              <p>Your file has been sent to your email address.</p>
-            </div>
-            <button className="close-notification" onClick={onClose}>
-              <i className="fas fa-times"></i>
-            </button>
-          </div>
-        )}
-      </div>
-       </div>
-          </div>
-  );
-};
-
-export default ModalPurchase;
+*/}
