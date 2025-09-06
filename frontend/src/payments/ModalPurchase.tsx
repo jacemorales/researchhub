@@ -77,7 +77,6 @@ const ModalPurchase = ({ onClose, data }: ModalProps) => {
                     type="text"
                     id="fullName"
                     name="customer_name"
-                    value="jace"
                   />
                 </div>
                 <div className="form-group">
@@ -88,7 +87,6 @@ const ModalPurchase = ({ onClose, data }: ModalProps) => {
                     type="email"
                     id="email"
                     name="customer_email"
-                    value="jace@example.com"
                   />
                 </div>
               </div>
@@ -101,7 +99,6 @@ const ModalPurchase = ({ onClose, data }: ModalProps) => {
                   type="tel"
                   id="phone"
                   name="customer_phone"
-                  value="123-456-7890"
                 />
               </div>
 

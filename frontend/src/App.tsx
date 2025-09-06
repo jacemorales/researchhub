@@ -5,8 +5,10 @@ import Home from "./user/Home";
 import Marketplace from "./user/pages/Marketplace";
 import PaymentScriptLoader from "./payments/PaymentScriptLoader";
 
-// Admin pages (placeholders for now)
-// import AdminDashboard from "./admin/pages/Dashboard";
+// Admin pages
+// import Home from "./admin/Home";
+// import Settings from "./admin/pages/Settings";
+// import Payments from "./admin/pages/Payments";
 
 const NotFound = () => <h1>404 - Not Found</h1>;
 
@@ -25,7 +27,9 @@ const App = () => {
         <Route path="/payments/*" element={<PaymentScriptLoader />} />
 
         {/* Admin routes */}
-        {/* <Route path="/admin" element={<AdminDashboard />} /> */}
+        {/* <Route path="/admin" element={<Home/>} /> */}
+        {/* <Route path="/admin/settings" element={<Settings/>} /> */}
+        {/* <Route path="/admin/payments" element={<Payments/>} /> */}
 
         {/* Catch-all */}
         <Route path="*" element={<NotFound />} />

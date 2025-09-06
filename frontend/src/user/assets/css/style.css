@@ -1853,7 +1853,7 @@ footer {
 }
 
 /* Status Indicators */
-.payment-status{flex-direction: column;display: none;}
+.payment-status{flex-direction: column;display: flex;}
 .payment-status,
 .contact-status {
   text-align: center;
