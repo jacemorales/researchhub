@@ -1,7 +1,0 @@
-[build]
-  command = "npm run build"
-  publish = "build"  # or "dist", "out", etc. — adjust based on your framework
-
-  # Remove the admin source folder from the final deploy
-  # (just in case it gets copied)
-  ignore_command = "rm -rf build/src/admin"
