@@ -1,4 +1,5 @@
-import React, { useState, useCallback, ReactNode } from 'react';
+import React, { useState, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import Toast from '../components/Toast';
 
 interface ToastMessage {

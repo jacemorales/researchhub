@@ -1,19 +1,26 @@
 import { useState } from "react";
-import { AcademicFile, Payment, WebsiteConfig } from "./useData";
+import type { AcademicFile, Payment, WebsiteConfig } from "./useData";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+interface ApiResponse {
+    success: boolean;
+    message: string;
+    file_id?: number;
+    error?: string;
+}
+
 interface CUDOperations {
   academic_files: {
-    create: (file: Partial<AcademicFile>) => Promise<any>;
-    update: (file: Partial<AcademicFile>) => Promise<any>;
-    delete: (id: number) => Promise<any>;
+    create: (file: Partial<AcademicFile>) => Promise<ApiResponse | undefined>;
+    update: (file: Partial<AcademicFile>) => Promise<ApiResponse | undefined>;
+    delete: (id: number) => Promise<ApiResponse | undefined>;
   };
   payments: {
-    update: (payment: Partial<Payment>) => Promise<any>;
+    update: (payment: Partial<Payment>) => Promise<ApiResponse | undefined>;
   };
   website_config: {
-    update: (config: Partial<WebsiteConfig>) => Promise<any>;
+    update: (config: Partial<WebsiteConfig>) => Promise<ApiResponse | undefined>;
   };
 }
 
@@ -22,7 +29,7 @@ export const useCUD = () => {
   const [error, setError] = useState<string | null>(null);
 
   const academic_files = {
-    create: async (file: Partial<AcademicFile>) => {
+    create: async (file: Partial<AcademicFile>): Promise<ApiResponse | undefined> => {
       setLoading(true);
       setError(null);
       try {
@@ -33,18 +40,20 @@ export const useCUD = () => {
           },
           body: JSON.stringify(file),
         });
-        const result = await res.json();
+        const result: ApiResponse = await res.json();
         if (!result.success) {
           throw new Error(result.error);
         }
         return result;
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+            setError(err.message);
+        }
       } finally {
         setLoading(false);
       }
     },
-    update: async (file: Partial<AcademicFile>) => {
+    update: async (file: Partial<AcademicFile>): Promise<ApiResponse | undefined> => {
       setLoading(true);
       setError(null);
       try {
@@ -55,18 +64,20 @@ export const useCUD = () => {
           },
           body: JSON.stringify(file),
         });
-        const result = await res.json();
+        const result: ApiResponse = await res.json();
         if (!result.success) {
           throw new Error(result.error);
         }
         return result;
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+            setError(err.message);
+        }
       } finally {
         setLoading(false);
       }
     },
-    delete: async (id: number) => {
+    delete: async (id: number): Promise<ApiResponse | undefined> => {
         setLoading(true);
         setError(null);
         try {
@@ -77,13 +88,15 @@ export const useCUD = () => {
                 },
                 body: JSON.stringify({ id }),
             });
-            const result = await res.json();
+            const result: ApiResponse = await res.json();
             if (!result.success) {
                 throw new Error(result.error);
             }
             return result;
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            if (err instanceof Error) {
+                setError(err.message);
+            }
         } finally {
             setLoading(false);
         }
@@ -91,7 +104,7 @@ export const useCUD = () => {
   };
 
   const payments = {
-    update: async (payment: Partial<Payment>) => {
+    update: async (payment: Partial<Payment>): Promise<ApiResponse | undefined> => {
       setLoading(true);
       setError(null);
       try {
@@ -102,13 +115,15 @@ export const useCUD = () => {
           },
           body: JSON.stringify(payment),
         });
-        const result = await res.json();
+        const result: ApiResponse = await res.json();
         if (!result.success) {
           throw new Error(result.error);
         }
         return result;
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+            setError(err.message);
+        }
       } finally {
         setLoading(false);
       }
@@ -116,7 +131,7 @@ export const useCUD = () => {
   };
 
   const website_config = {
-    update: async (config: Partial<WebsiteConfig>) => {
+    update: async (config: Partial<WebsiteConfig>): Promise<ApiResponse | undefined> => {
         setLoading(true);
         setError(null);
         try {
@@ -127,13 +142,15 @@ export const useCUD = () => {
                 },
                 body: JSON.stringify(config),
             });
-            const result = await res.json();
+            const result: ApiResponse = await res.json();
             if (!result.success) {
                 throw new Error(result.error);
             }
             return result;
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            if (err instanceof Error) {
+                setError(err.message);
+            }
         } finally {
             setLoading(false);
         }

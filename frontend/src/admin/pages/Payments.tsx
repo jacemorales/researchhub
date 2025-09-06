@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { useData, Payment } from "../../hooks/useData";
+import { useData } from "../../hooks/useData";
+import type { Payment } from "../../hooks/useData";
 import { useCUD } from "../../hooks/useCUD";
 import { useToast } from "../../hooks/useToast";
 
@@ -141,7 +142,7 @@ const Payments: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredPayments.map((payment: any) => (
+                                    {filteredPayments.map((payment) => (
                                         <tr key={payment.id}>
                                             <td><span className="transaction-id">{payment.transaction_id}</span></td>
                                             <td>
@@ -192,7 +193,7 @@ const Payments: React.FC = () => {
                         <div className="modal-body">
                             <p><strong>Transaction ID:</strong> {selectedPayment.transaction_id}</p>
                             <p><strong>Customer:</strong> {selectedPayment.customer_name} ({selectedPayment.customer_email})</p>
-                            <p><strong>File:</strong> {(selectedPayment as any).file_name || 'Unknown File'}</p>
+                            <p><strong>File:</strong> {selectedPayment.file_name || 'Unknown File'}</p>
                             <p><strong>Amount:</strong> ${selectedPayment.amount.toFixed(2)}</p>
                             <p><strong>Payment Method:</strong> {selectedPayment.payment_method}</p>
                             <p><strong>Status:</strong> {selectedPayment.status}</p>

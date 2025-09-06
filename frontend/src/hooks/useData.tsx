@@ -4,6 +4,11 @@ export interface WebsiteConfig {
   [key: string]: string;
 }
 
+export interface Price {
+    usd: number;
+    ngn: number;
+}
+
 export interface AcademicFile {
     id: number;
     drive_file_id: string;
@@ -14,7 +19,7 @@ export interface AcademicFile {
     description: string | null;
     category: 'research' | 'thesis' | 'dissertation' | 'assignment' | 'project' | 'presentation' | 'other';
     level: 'undergraduate' | 'postgraduate';
-    price: string | null; // JSON string
+    price: Price | null;
     r2_key: string | null;
     r2_url: string | null;
     r2_upload_status: 'pending' | 'uploading' | 'success' | 'failed';
@@ -27,6 +32,7 @@ export interface Payment {
     id: number;
     transaction_id: string;
     file_id: number;
+    file_name?: string;
     customer_name: string;
     customer_email: string;
     payment_method: 'paypal' | 'stripe' | 'bank_transfer' | 'crypto';
@@ -81,4 +87,5 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useData = () => useContext(DataContext);

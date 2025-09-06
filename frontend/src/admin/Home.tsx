@@ -2,17 +2,21 @@ import React, { useState, useEffect } from "react";
 import gapi from "gapi-script";
 import { initGoogleClient, signInToGoogle, signOutFromGoogle, fetchDriveFiles } from "./utils/googleApi";
 import { useCUD } from "../hooks/useCUD";
-import { AcademicFile } from "../hooks/useData";
+import type { AcademicFile, Price } from "../hooks/useData";
 
-interface Price {
-    usd: number;
-    ngn: number;
+interface DriveFile {
+    id: string;
+    name: string;
+    mimeType: string;
+    size: string;
+    modifiedTime: string;
+    webViewLink: string;
 }
 
 const AdminHome: React.FC = () => {
     const [isSignedIn, setIsSignedIn] = useState(false);
-    const [driveFiles, setDriveFiles] = useState<any[]>([]);
-    const [selectedFile, setSelectedFile] = useState<any>(null);
+    const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
+    const [selectedFile, setSelectedFile] = useState<DriveFile | null>(null);
     const [fileDetails, setFileDetails] = useState<Partial<AcademicFile>>({});
     const { academic_files, loading, error } = useCUD();
 
@@ -42,7 +46,7 @@ const AdminHome: React.FC = () => {
         setIsSignedIn(false);
     };
 
-    const handleFileSelect = (file: any) => {
+    const handleFileSelect = (file: DriveFile) => {
         setSelectedFile(file);
         setFileDetails({
             drive_file_id: file.id,
@@ -65,7 +69,7 @@ const AdminHome: React.FC = () => {
             ...fileDetails,
             price: {
                 ...(fileDetails.price as Price),
-                [name]: value,
+                [name]: parseFloat(value),
             },
         });
     };
@@ -206,7 +210,7 @@ const AdminHome: React.FC = () => {
                                     <label htmlFor="filePrice"><i className="fas fa-dollar-sign"></i> Price (USD)</label>
                                     <div className="price-input">
                                         <span>$</span>
-                                        <input type="number" id="filePrice" name="usd" placeholder="0.00" step="0.01" min="0" onChange={handlePriceChange} value={(fileDetails.price as Price)?.usd || ""} />
+                                        <input type="number" id="filePrice" name="usd" placeholder="0.00" step="0.01" min="0" onChange={handlePriceChange} value={fileDetails.price?.usd || ""} />
                                     </div>
                                 </div>
 
@@ -214,7 +218,7 @@ const AdminHome: React.FC = () => {
                                     <label htmlFor="filePriceNGN"><i className="fas fa-naira-sign"></i> Price (NGN)</label>
                                     <div className="price-input">
                                         <span>₦</span>
-                                        <input type="number" id="filePriceNGN" name="ngn" placeholder="0.00" step="0.01" min="0" onChange={handlePriceChange} value={(fileDetails.price as Price)?.ngn || ""} />
+                                        <input type="number" id="filePriceNGN" name="ngn" placeholder="0.00" step="0.01" min="0" onChange={handlePriceChange} value={fileDetails.price?.ngn || ""} />
                                     </div>
                                 </div>
                             </div>

@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { useData, WebsiteConfig } from "../../hooks/useData";
+import type { WebsiteConfig } from "../../hooks/useData";
+import { useData } from "../../hooks/useData";
 import { useCUD } from "../../hooks/useCUD";
 import { useToast } from "../../hooks/useToast";
+
+interface ConfigItem {
+    config_key: string;
+    config_value: string;
+    config_type: string;
+    config_category: string;
+    config_description: string;
+}
 
 const Settings: React.FC = () => {
     const { website_config } = useData();
@@ -10,7 +19,7 @@ const Settings: React.FC = () => {
     const [localConfig, setLocalConfig] = useState<WebsiteConfig | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-    const [selectedConfig, setSelectedConfig] = useState<any>(null);
+    const [selectedConfig, setSelectedConfig] = useState<ConfigItem | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
     useEffect(() => {
@@ -40,7 +49,7 @@ const Settings: React.FC = () => {
     const handleCategoryUpdate = async () => {
         if (localConfig && selectedCategory) {
             const categoryConfigs = Object.keys(localConfig).filter(key => {
-                const config = website_config?.[key] as any;
+                const config = website_config?.[key] as unknown as ConfigItem;
                 return config?.config_category === selectedCategory;
             });
             const configsToUpdate: WebsiteConfig = {};
@@ -53,7 +62,7 @@ const Settings: React.FC = () => {
         }
     };
 
-    const openEditModal = (config: any) => {
+    const openEditModal = (config: ConfigItem) => {
         setSelectedConfig(config);
         setIsEditModalOpen(true);
     };
@@ -105,7 +114,7 @@ const Settings: React.FC = () => {
         return value.substring(0, length) + '...';
     }
 
-    const renderInput = (config: any, onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void) => {
+    const renderInput = (config: ConfigItem, onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void) => {
         switch (config.config_type) {
             case 'textarea':
                 return <textarea value={config.config_value} onChange={onChange} rows={5} />;
@@ -144,17 +153,17 @@ const Settings: React.FC = () => {
                         </div>
 
                         <div className="config-items">
-                            {website_config && Object.entries(website_config).filter(([key, value]) => (value as any).config_category === category).map(([key, value]) => (
+                            {website_config && Object.entries(website_config).filter(([, value]) => (value as unknown as ConfigItem).config_category === category).map(([key, value]) => (
                                 <div className="config-item" key={key}>
                                     <div className="config-info">
                                         <h3>{formatConfigKey(key)}</h3>
                                         <div className="config-value">
                                             <strong>Current Value:</strong>
-                                            <span className="value-preview">{truncateValue((value as any).config_value)}</span>
+                                            <span className="value-preview">{truncateValue((value as unknown as ConfigItem).config_value)}</span>
                                         </div>
                                     </div>
                                     <div className="config-actions">
-                                        <button className="btn-edit-item" onClick={() => openEditModal({ config_key: key, config_value: (value as any).config_value, config_type: (value as any).config_type })}>
+                                        <button className="btn-edit-item" onClick={() => openEditModal(value as unknown as ConfigItem)}>
                                             <i className="fas fa-edit"></i> Edit
                                         </button>
                                     </div>
@@ -195,10 +204,10 @@ const Settings: React.FC = () => {
                             <h2 className="modal-title">Edit {configCategories[selectedCategory]}</h2>
                         </div>
                         <div className="category-form">
-                            {localConfig && Object.entries(localConfig).filter(([key, value]) => (value as any).config_category === selectedCategory).map(([key, value]) => (
+                            {localConfig && Object.entries(localConfig).filter(([, value]) => (value as unknown as ConfigItem).config_category === selectedCategory).map(([key, value]) => (
                                 <div className="form-group" key={key}>
                                     <label htmlFor={key}>{formatConfigKey(key)}</label>
-                                    {renderInput({ config_key: key, config_value: (value as any).config_value, config_type: (value as any).config_type }, e => handleCategoryInputChange(key, e.target.value))}
+                                    {renderInput(value as unknown as ConfigItem, e => handleCategoryInputChange(key, e.target.value))}
                                 </div>
                             ))}
                         </div>
