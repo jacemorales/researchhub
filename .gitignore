@@ -1,7 +1,34 @@
-<<<<<<< HEAD
+# Dependencies
+/node_modules
 admin/node_modules/
 user/node_modules/
-=======
 admin/vendor/
 vendor/
->>>>>>> 86f1c1fbba94f4cf03085d364b186a9da3a94d5f
+
+# Build artifacts
+dist
+build
+.next
+.nuxt
+.svelte-kit
+.vercel
+
+# Log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE files
+.idea
+.vscode
+*.sublime-workspace
+frontend/src/admin
