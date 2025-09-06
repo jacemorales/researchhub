@@ -6,35 +6,44 @@ import Marketplace from "./user/pages/Marketplace";
 import PaymentScriptLoader from "./payments/PaymentScriptLoader";
 
 // Admin pages
-// import Home from "./admin/Home";
-// import Settings from "./admin/pages/Settings";
-// import Payments from "./admin/pages/Payments";
+import AdminLayout from "./admin/AdminLayout";
+import AdminHome from "./admin/Home";
+import Settings from "./admin/pages/Settings";
+import Payments from "./admin/pages/Payments";
+import { DataProvider } from "./hooks/useData";
+import { ToastProvider } from "./hooks/useToast";
 
 const NotFound = () => <h1>404 - Not Found</h1>;
 
 const App = () => {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Default redirect */}
-        <Route path="/" element={<Navigate to="/user" replace />} />
+    <DataProvider>
+      <ToastProvider>
+        <BrowserRouter>
+          <Routes>
+          {/* Default redirect */}
+          <Route path="/" element={<Navigate to="/user" replace />} />
 
-        {/* User routes */}
-        <Route path="/user" element={<Home />} />
-        <Route path="/user/marketplace" element={<Marketplace />} />
+          {/* User routes */}
+          <Route path="/user" element={<Home />} />
+          <Route path="/user/marketplace" element={<Marketplace />} />
 
-        {/* Payment script route */}
-        <Route path="/payments/*" element={<PaymentScriptLoader />} />
+          {/* Payment script route */}
+          <Route path="/payments/*" element={<PaymentScriptLoader />} />
 
-        {/* Admin routes */}
-        {/* <Route path="/admin" element={<Home/>} /> */}
-        {/* <Route path="/admin/settings" element={<Settings/>} /> */}
-        {/* <Route path="/admin/payments" element={<Payments/>} /> */}
+          {/* Admin routes */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminHome />} />
+            <Route path="settings" element={<Settings />} />
+            <Route path="payments" element={<Payments />} />
+          </Route>
 
-        {/* Catch-all */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </BrowserRouter>
+          {/* Catch-all */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+      </ToastProvider>
+    </DataProvider>
   );
 };
 

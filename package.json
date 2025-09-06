@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@types/gapi": "^0.0.47",
+    "gapi-script": "^1.2.0"
+  }
+}

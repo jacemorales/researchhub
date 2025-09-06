@@ -40,12 +40,12 @@ class Database {
                 $result = $stmt->fetch();
                 return $result ? $result['config_value'] : null;
             } else {
-                $stmt = $this->pdo->query("SELECT config_key, config_value, config_type, config_category, config_description FROM website_config ORDER BY config_category, config_key");
+                $stmt = $this->pdo->query("SELECT * FROM website_config ORDER BY config_category, config_key");
                 $results = $stmt->fetchAll();
                 
                 $config = [];
                 foreach ($results as $row) {
-                    $config[$row['config_key']] = $row['config_value'];
+                    $config[$row['config_key']] = $row;
                 }
                 return $config;
             }
@@ -55,54 +55,90 @@ class Database {
         }
     }
     
-    public function updateConfig($key, $value) {
+    public function updateConfig($configs) {
         try {
+            $this->pdo->beginTransaction();
             $stmt = $this->pdo->prepare("UPDATE website_config SET config_value = ?, updated_at = CURRENT_TIMESTAMP WHERE config_key = ?");
-            return $stmt->execute([$value, $key]);
+            foreach ($configs as $key => $value) {
+                $stmt->execute([$value, $key]);
+            }
+            $this->pdo->commit();
+            return true;
         } catch (PDOException $e) {
+            $this->pdo->rollBack();
             error_log("Error updating config: " . $e->getMessage());
             return false;
         }
     }
-    
-    public function getAllConfigWithDetails() {
+
+    public function saveAcademicFile($file) {
         try {
-            $stmt = $this->pdo->query("SELECT * FROM website_config ORDER BY config_category, config_key");
-            return $stmt->fetchAll();
+            $stmt = $this->pdo->prepare("SELECT id FROM academic_files WHERE drive_file_id = ?");
+            $stmt->execute([$file['drive_file_id']]);
+            $existing_file = $stmt->fetch();
+
+            if ($existing_file) {
+                $stmt = $this->pdo->prepare("
+                    UPDATE academic_files
+                    SET file_name = ?, file_type = ?, file_size = ?, modified_date = ?,
+                        description = ?, category = ?, level = ?, price = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE drive_file_id = ?
+                ");
+                $stmt->execute([
+                    $file['file_name'], $file['file_type'], $file['file_size'], $file['modified_date'],
+                    $file['description'], $file['category'], $file['level'], json_encode($file['price']), $file['drive_file_id']
+                ]);
+            } else {
+                $stmt = $this->pdo->prepare("
+                    INSERT INTO academic_files
+                    (drive_file_id, file_name, file_type, file_size, modified_date, description, category, level, price)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ");
+                $stmt->execute([
+                    $file['drive_file_id'], $file['file_name'], $file['file_type'], $file['file_size'], $file['modified_date'],
+                    $file['description'], $file['category'], $file['level'], json_encode($file['price'])
+                ]);
+            }
+            return true;
         } catch (PDOException $e) {
-            error_log("Error getting config details: " . $e->getMessage());
-            return [];
-        }
-    }
-    
-    public function getConfigByCategory($category) {
-        try {
-            $stmt = $this->pdo->prepare("SELECT * FROM website_config WHERE config_category = ? ORDER BY config_key");
-            $stmt->execute([$category]);
-            return $stmt->fetchAll();
-        } catch (PDOException $e) {
-            error_log("Error getting config by category: " . $e->getMessage());
-            return [];
-        }
-    }
-    
-    public function insertConfig($key, $value, $type = 'text', $category = 'general', $description = '') {
-        try {
-            $stmt = $this->pdo->prepare("INSERT INTO website_config (config_key, config_value, config_type, config_category, config_description) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE config_value = VALUES(config_value), config_type = VALUES(config_type), config_category = VALUES(config_category), config_description = VALUES(config_description)");
-            return $stmt->execute([$key, $value, $type, $category, $description]);
-        } catch (PDOException $e) {
-            error_log("Error inserting config: " . $e->getMessage());
+            error_log("Error saving academic file: " . $e->getMessage());
             return false;
         }
     }
-    
-    public function deleteConfig($key) {
+
+    public function deleteAcademicFile($id) {
         try {
-            $stmt = $this->pdo->prepare("DELETE FROM website_config WHERE config_key = ?");
-            return $stmt->execute([$key]);
+            $stmt = $this->pdo->prepare("DELETE FROM academic_files WHERE id = ?");
+            return $stmt->execute([$id]);
         } catch (PDOException $e) {
-            error_log("Error deleting config: " . $e->getMessage());
+            error_log("Error deleting academic file: " . $e->getMessage());
             return false;
+        }
+    }
+
+    public function updatePaymentStatus($id, $status) {
+        try {
+            $stmt = $this->pdo->prepare("UPDATE payments SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+            return $stmt->execute([$status, $id]);
+        } catch (PDOException $e) {
+            error_log("Error updating payment status: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function getPaymentDetails($id) {
+        try {
+            $stmt = $this->pdo->prepare("
+                SELECT p.*, af.file_name, af.drive_file_id
+                FROM payments p
+                LEFT JOIN academic_files af ON p.file_id = af.id
+                WHERE p.id = ?
+            ");
+            $stmt->execute([$id]);
+            return $stmt->fetch();
+        } catch (PDOException $e) {
+            error_log("Error getting payment details: " . $e->getMessage());
+            return null;
         }
     }
     
@@ -110,26 +146,4 @@ class Database {
         return $this->pdo;
     }
 }
-
-// Initialize database connection
-$db = new Database();
-
-// Function to get config value with fallback
-function getConfig($key, $default = '') {
-    global $db;
-    $value = $db->getConfig($key);
-    return $value !== null ? $value : $default;
-}
-
-// Function to load all config values into constants
-function loadConfigConstants() {
-    global $db;
-    $config = $db->getConfig();
-    
-    foreach ($config as $key => $value) {
-        if (!defined($key)) {
-            define($key, $value);
-        }
-    }
-}
-?> 
+?>
