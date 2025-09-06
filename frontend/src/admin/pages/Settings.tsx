@@ -126,8 +126,9 @@ const Settings: React.FC = () => {
     };
 
     return (
-        <div className="config-content">
-            <div className="config-header">
+        <>
+            <div className="config-content">
+                <div className="config-header">
                 <h1><i className="fas fa-cog"></i> Website Configuration</h1>
                 <p>Manage all website settings and content from this centralized admin panel.</p>
             </div>
@@ -212,6 +213,7 @@ const Settings: React.FC = () => {
                 </div>
             )}
         </div>
+        </>
     );
 };
 

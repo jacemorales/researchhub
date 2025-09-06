@@ -35,17 +35,19 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <ToastContext.Provider value={{ addToast }}>
-      {children}
-      <div className="toast-container">
-        {toasts.map((toast) => (
-          <Toast
-            key={toast.id}
-            message={toast.message}
-            type={toast.type}
-            onClose={() => removeToast(toast.id)}
-          />
-        ))}
-      </div>
+      <>
+        {children}
+        <div className="toast-container">
+          {toasts.map((toast) => (
+            <Toast
+              key={toast.id}
+              message={toast.message}
+              type={toast.type}
+              onClose={() => removeToast(toast.id)}
+            />
+          ))}
+        </div>
+      </>
     </ToastContext.Provider>
   );
 };

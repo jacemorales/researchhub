@@ -126,22 +126,6 @@ class Database {
         }
     }
 
-    public function getPaymentDetails($id) {
-        try {
-            $stmt = $this->pdo->prepare("
-                SELECT p.*, af.file_name, af.drive_file_id
-                FROM payments p
-                LEFT JOIN academic_files af ON p.file_id = af.id
-                WHERE p.id = ?
-            ");
-            $stmt->execute([$id]);
-            return $stmt->fetch();
-        } catch (PDOException $e) {
-            error_log("Error getting payment details: " . $e->getMessage());
-            return null;
-        }
-    }
-    
     public function getConnection() {
         return $this->pdo;
     }

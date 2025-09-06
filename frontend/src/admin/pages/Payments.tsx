@@ -3,8 +3,6 @@ import { useData, Payment } from "../../hooks/useData";
 import { useCUD } from "../../hooks/useCUD";
 import { useToast } from "../../hooks/useToast";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
 const Payments: React.FC = () => {
     const { payments } = useData();
     const { payments: { update }, loading, error } = useCUD();
@@ -46,18 +44,13 @@ const Payments: React.FC = () => {
         addToast("Payment status updated successfully!", "success");
     };
 
-    const handleViewDetails = async (id: number) => {
-        try {
-            const res = await fetch(`${API_BASE_URL}/backend/admin/get_payment_details.php?id=${id}`);
-            const result = await res.json();
-            if (result.success) {
-                setSelectedPayment(result.data);
-                setIsModalOpen(true);
-            } else {
-                addToast(result.error, "error");
-            }
-        } catch (err) {
-            addToast("Failed to fetch payment details", "error");
+    const handleViewDetails = (id: number) => {
+        const payment = payments?.find(p => p.id === id);
+        if (payment) {
+            setSelectedPayment(payment);
+            setIsModalOpen(true);
+        } else {
+            addToast("Payment not found", "error");
         }
     };
 
@@ -72,8 +65,9 @@ const Payments: React.FC = () => {
     }
 
     return (
-        <div className="config-content">
-            <div className="config-header">
+        <>
+            <div className="config-content">
+                <div className="config-header">
                 <h1><i className="fas fa-credit-card"></i> Payment Management</h1>
                 <p>View and manage payment transactions from customers.</p>
             </div>
@@ -198,7 +192,7 @@ const Payments: React.FC = () => {
                         <div className="modal-body">
                             <p><strong>Transaction ID:</strong> {selectedPayment.transaction_id}</p>
                             <p><strong>Customer:</strong> {selectedPayment.customer_name} ({selectedPayment.customer_email})</p>
-                            <p><strong>File:</strong> {selectedPayment.file_name || 'Unknown File'}</p>
+                            <p><strong>File:</strong> {(selectedPayment as any).file_name || 'Unknown File'}</p>
                             <p><strong>Amount:</strong> ${selectedPayment.amount.toFixed(2)}</p>
                             <p><strong>Payment Method:</strong> {selectedPayment.payment_method}</p>
                             <p><strong>Status:</strong> {selectedPayment.status}</p>
@@ -210,6 +204,7 @@ const Payments: React.FC = () => {
                 </div>
             )}
         </div>
+        </>
     );
 };
 

@@ -20,8 +20,9 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
   };
 
   return (
-    <div className={`toast toast-${type} toast-show`}>
-      <div className="toast-content">
+    <>
+      <div className={`toast toast-${type} toast-show`}>
+        <div className="toast-content">
         <i className={`toast-icon ${icons[type]}`}></i>
         <span className="toast-message">{message}</span>
         <button className="toast-close" onClick={onClose}>
@@ -29,6 +30,7 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
         </button>
       </div>
     </div>
+    </>
   );
 };
 

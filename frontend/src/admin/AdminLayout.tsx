@@ -6,12 +6,14 @@ import "./assets/css/admin.css";
 
 const AdminLayout: React.FC = () => {
     return (
-        <div className="admin-container">
-            <Header />
-            <main className="admin-content">
-                <Outlet />
-            </main>
-        </div>
+        <>
+            <div className="admin-container">
+                <Header />
+                <main className="admin-content">
+                    <Outlet />
+                </main>
+            </div>
+        </>
     );
 };
 

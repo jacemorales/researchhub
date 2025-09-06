@@ -81,9 +81,10 @@ const AdminHome: React.FC = () => {
     };
 
     return (
-        <div className="drive-content">
-            {!isSignedIn ? (
-                <div className="auth-prompt">
+        <>
+            <div className="drive-content">
+                {!isSignedIn ? (
+                    <div className="auth-prompt">
                     <div className="auth-card">
                         <div className="auth-icon">
                             <i className="fab fa-google-drive"></i>
@@ -232,6 +233,7 @@ const AdminHome: React.FC = () => {
                 </div>
             )}
         </div>
+        </>
     );
 };
 

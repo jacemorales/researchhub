@@ -17,33 +17,35 @@ const NotFound = () => <h1>404 - Not Found</h1>;
 
 const App = () => {
   return (
-    <DataProvider>
-      <ToastProvider>
-        <BrowserRouter>
-          <Routes>
-          {/* Default redirect */}
-          <Route path="/" element={<Navigate to="/user" replace />} />
+    <>
+      <DataProvider>
+        <ToastProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* Default redirect */}
+              <Route path="/" element={<Navigate to="/user" replace />} />
 
-          {/* User routes */}
-          <Route path="/user" element={<Home />} />
-          <Route path="/user/marketplace" element={<Marketplace />} />
+              {/* User routes */}
+              <Route path="/user" element={<Home />} />
+              <Route path="/user/marketplace" element={<Marketplace />} />
 
-          {/* Payment script route */}
-          <Route path="/payments/*" element={<PaymentScriptLoader />} />
+              {/* Payment script route */}
+              <Route path="/payments/*" element={<PaymentScriptLoader />} />
 
-          {/* Admin routes */}
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<AdminHome />} />
-            <Route path="settings" element={<Settings />} />
-            <Route path="payments" element={<Payments />} />
-          </Route>
+              {/* Admin routes */}
+              <Route path="/admin" element={<AdminLayout />}>
+                <Route index element={<AdminHome />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="payments" element={<Payments />} />
+              </Route>
 
-          {/* Catch-all */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-      </ToastProvider>
-    </DataProvider>
+              {/* Catch-all */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </ToastProvider>
+      </DataProvider>
+    </>
   );
 };
 

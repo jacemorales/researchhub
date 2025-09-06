@@ -13,8 +13,9 @@ const Header: React.FC = () => {
     };
 
     return (
-        <nav className="admin-navbar">
-            <div className="navbar-brand">
+        <>
+            <nav className="admin-navbar">
+                <div className="navbar-brand">
                 <i className="fas fa-graduation-cap"></i>
                 <span>{website_config?.site_name} Admin</span>
             </div>
@@ -37,6 +38,7 @@ const Header: React.FC = () => {
                 </button>
             </div>
         </nav>
+        </>
     );
 };
 
