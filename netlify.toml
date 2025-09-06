@@ -1,7 +1,7 @@
 [build]
   base    = "frontend"
   publish = "frontend/dist"
-  command = "npm run build"
+  command = "npm run build && rm -rf dist/src/admin"
 
 [functions]
   directory = "frontend/netlify/functions"
