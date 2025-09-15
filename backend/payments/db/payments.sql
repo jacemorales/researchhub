@@ -20,22 +20,14 @@ CREATE TABLE payments (
     payment_method VARCHAR(50) DEFAULT 'manual' COMMENT 'e.g., paystack, stripe, paypal',
     
     -- Payment Provider & Status Details (merged)
-<<<<<<< HEAD
-    reference VARCHAR(100) UNIQUE,
-=======
     reference VARCHAR(100) UNIQUE COMMENT 'Reference ID from the payment provider (e.g., Paystack reference)',
     payment_status ENUM('pending', 'completed', 'failed', 'refunded', 'abandoned') DEFAULT 'pending',
     admin_status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending' COMMENT 'Admin review status',
->>>>>>> 63521ec5974b4ee31e75f1b7f0e4de7ba60fbebb
     
     -- Logging & Timestamps (from paymentss.sql)
     current_status varchar(50) NOT NULL DEFAULT 'pending',
     started_at datetime NOT NULL,
     completed_at datetime NULL DEFAULT NULL,
-<<<<<<< HEAD
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-=======
->>>>>>> 63521ec5974b4ee31e75f1b7f0e4de7ba60fbebb
     transaction_logs TEXT COMMENT 'Logs or full callback data from the payment provider',
 
     -- Indexes for performance
