@@ -8,7 +8,7 @@ const Marketplace = lazy(() => import("./user/pages/Marketplace"));
 const PaymentScriptLoader = lazy(() => import("./payments/PaymentScriptLoader"));
 
 const Admin = lazy(() => import("./admin/Admin"));
-// import Settings from "./admin/pages/Settings";
+ import Settings from "./admin/pages/Settings";
 // import Payments from "./admin/pages/Payments";
 
 
@@ -30,7 +30,7 @@ const AppRoutes = () => {
 
           {/* Admin Route */}
           <Route path="/admin" element={<Admin />} />
-           {/* <Route path="/admin/settings" element={<Settings/>} /> */}
+          <Route path="/admin/settings" element={<Settings />} />
           {/* <Route path="/admin/payments" element={<Payments/>} /> */}
 
           {/* Fallback */}

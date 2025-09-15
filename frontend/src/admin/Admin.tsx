@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import Header from "./components/Header";
-import "./assets/css/admin.css";
-import "./assets/css/config.css";
+
 
 // 👇 DECLARE TYPES — NO MORE 'any'
 declare global {
@@ -311,7 +310,7 @@ export default function Admin() {
 
   return (
     <div className="admin-container">
-      <Header user={userProfile} onLogin={handleLogin} onLogout={handleLogout} />
+      <Header/>
 
       <div className="drive-content">
         {!userProfile ? (
@@ -322,7 +321,7 @@ export default function Admin() {
               </div>
               <h2>Connect to Google Drive</h2>
               <p>Sign in to access your documents and automatically fill file details</p>
-              <button onClick={handleLogin} className="btn-google-login">
+              <button onClick={handleLogin} className="btn-auth">
                 <i className="fab fa-google"></i> Sign in with Google
               </button>
             </div>
@@ -347,6 +346,11 @@ export default function Admin() {
               >
                 <i className="fas fa-folder-open"></i> View Your Drive Files
               </button>
+
+              <button onClick={handleLogout} className="btn-logout">
+            <i className="fas fa-sign-out-alt"></i> Sign Out
+          </button>
+          
             </div>
           </div>
         ) : (

@@ -1,53 +1,29 @@
 <?php
+// db_fetch.php - Fetches all data for the frontend
+
 // Set headers for JSON response and CORS
 header("Content-Type: application/json");
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
-
-header("Access-Control-Allow-Origin: http://localhost:5173");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Access-Control-Allow-Methods: GET, OPTIONS");
 header("Access-Control-Allow-Credentials: true");
+header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
+header("Access-Control-Allow-Origin: http://localhost:5173");
+header("Access-Control-Allow-Headers: Content-Type, Authorization");
 
 // Handle preflight requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
-// Include the centralized database configuration
-require_once 'config.php';
 
-class Database {
-    private $host;
-    private $dbname;
-    private $username;
-    private $password;
+// Include the centralized configuration
+require_once __DIR__ . '/config.php';
+
+class DatabaseFetcher {
     private $pdo;
 
-    public function __construct() {
-        $this->host = DB_HOST;
-        $this->dbname = DB_NAME;
-        $this->username = DB_USER;
-        $this->password = DB_PASS;
-        $this->connect();
-    }
-
-    private function connect() {
-        try {
-            $this->pdo = new PDO(
-                "mysql:host={$this->host};dbname={$this->dbname};charset=utf8mb4",
-                $this->username,
-                $this->password,
-                [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_EMULATE_PREPARES => false
-                ]
-            );
-        } catch (PDOException $e) {
-            error_log("Database connection failed: " . $e->getMessage());
-            throw new Exception("Database connection failed");
-        }
+    public function __construct($pdo) {
+        $this->pdo = $pdo;
     }
 
     public function getWebsiteConfig() {
@@ -87,12 +63,17 @@ class Database {
 }
 
 try {
-    $db = new Database();
+    // Get a fresh PDO connection
+    $pdo = getPDOConnection();
 
+    // Initialize the fetcher
+    $fetcher = new DatabaseFetcher($pdo);
+
+    // Fetch all data
     $data = [
-        'website_config' => $db->getWebsiteConfig(),
-        'academic_files' => $db->getAcademicFiles(),
-        'payments' => $db->getPayments()
+        'website_config' => $fetcher->getWebsiteConfig(),
+        'academic_files' => $fetcher->getAcademicFiles(),
+        'payments' => $fetcher->getPayments()
     ];
 
     echo json_encode(['success' => true, 'data' => $data]);

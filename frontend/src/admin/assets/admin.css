@@ -1,5 +1,5 @@
 /* Modern Admin Layout */
-.admin-container {
+body {
     min-height: 100vh;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     padding: 0;
@@ -794,7 +794,7 @@
 
 /* Modal Styles for Config */
 .modal {
-    display: none;
+    display: flex;
     position: fixed;
     z-index: 1000;
     left: 0;
@@ -1632,49 +1632,19 @@ input:checked + .slider:before {
 
 
 
-
-
-
-
-
-/* ============= LOADER STYLES ============= */
-
-.auth-card .loader {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 40px 20px;
-  text-align: center;
-}
-
-.auth-card .loader p {
-  margin-top: 20px;
-  color: #555;
-  font-size: 16px;
+.btn-view-users {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
   font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  font-size: 14px;
 }
 
-.spinner {
-  width: 48px;
-  height: 48px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #4285f4;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* Optional: Make it look nicer on small screens */
-@media (max-width: 768px) {
-  .spinner {
-    width: 36px;
-    height: 36px;
-  }
-  .auth-card .loader p {
-    font-size: 14px;
-  }
-}
