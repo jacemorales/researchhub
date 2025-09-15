@@ -16,7 +16,7 @@ try {
         PDO::ATTR_EMULATE_PREPARES => false,
         PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
     ];
-    $pdo = new PDO($dsn, $DB_USER, $DB_PASS, $options);
+    $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
 } catch (Throwable $e) {
     error_log("Database connection failed: " . $e->getMessage());
     $pdo = null;

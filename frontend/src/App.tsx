@@ -1,41 +1,44 @@
+// routes/AppRoutes.tsx
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { lazy, Suspense } from "react";
 
-// User pages
-import Home from "./user/Home";
-import Marketplace from "./user/pages/Marketplace";
-import PaymentScriptLoader from "./payments/PaymentScriptLoader";
+// Lazy load components //
+const UserHome = lazy(() => import("./user/Home"));
+const Marketplace = lazy(() => import("./user/pages/Marketplace"));
+const PaymentScriptLoader = lazy(() => import("./payments/PaymentScriptLoader"));
 
-// Admin pages
-// import Home from "./admin/Home";
+const Admin = lazy(() => import("./admin/Admin"));
 // import Settings from "./admin/pages/Settings";
 // import Payments from "./admin/pages/Payments";
 
-const NotFound = () => <h1>404 - Not Found</h1>;
 
-const App = () => {
+const Loading = () => <div>Loading...</div>;
+
+const AppRoutes = () => {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Default redirect */}
-        <Route path="/" element={<Navigate to="/user" replace />} />
+      <Suspense fallback={<Loading />}>
+        <Routes>
+          <Route path="/" element={<Navigate to="/user" replace />} />
 
-        {/* User routes */}
-        <Route path="/user" element={<Home />} />
-        <Route path="/user/marketplace" element={<Marketplace />} />
+          {/* User Routes */}
+          <Route path="/user" element={<UserHome />} />
+          <Route path="/user/marketplace" element={<Marketplace />} />
 
-        {/* Payment script route */}
-        <Route path="/payments/*" element={<PaymentScriptLoader />} />
+          {/* Payment Route */}
+          <Route path="/payments/*" element={<PaymentScriptLoader />} />
 
-        {/* Admin routes */}
-        {/* <Route path="/admin" element={<Home/>} /> */}
-        {/* <Route path="/admin/settings" element={<Settings/>} /> */}
-        {/* <Route path="/admin/payments" element={<Payments/>} /> */}
+          {/* Admin Route */}
+          <Route path="/admin" element={<Admin />} />
+           {/* <Route path="/admin/settings" element={<Settings/>} /> */}
+          {/* <Route path="/admin/payments" element={<Payments/>} /> */}
 
-        {/* Catch-all */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+          {/* Fallback */}
+          <Route path="*" element={<div>404 Not Found</div>} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 };
 
-export default App;
+export default AppRoutes;

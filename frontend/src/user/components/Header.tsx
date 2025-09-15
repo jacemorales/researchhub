@@ -1,5 +1,7 @@
 // src/components/Header.tsx
 import { useEffect, useState } from "react";
+import '../assets/css/style.css';
+
 import { useData } from "../../hooks/useData";
 import ModalContact from "./ModalContact";
 import ModalAbout from "./ModalAbout";

@@ -20,15 +20,12 @@ CREATE TABLE payments (
     payment_method VARCHAR(50) DEFAULT 'manual' COMMENT 'e.g., paystack, stripe, paypal',
     
     -- Payment Provider & Status Details (merged)
-    transaction_id VARCHAR(100) UNIQUE NOT NULL COMMENT 'Internal transaction identifier',
-    provider_reference VARCHAR(100) UNIQUE COMMENT 'Reference ID from the payment provider (e.g., Paystack reference)',
-    payment_status ENUM('pending', 'completed', 'failed', 'refunded', 'abandoned') DEFAULT 'pending',
+    reference VARCHAR(100) UNIQUE,
     
     -- Logging & Timestamps (from paymentss.sql)
     current_status varchar(50) NOT NULL DEFAULT 'pending',
     started_at datetime NOT NULL,
     completed_at datetime NULL DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     transaction_logs TEXT COMMENT 'Logs or full callback data from the payment provider',
 

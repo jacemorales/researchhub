@@ -194,6 +194,7 @@ const ModalPurchase = ({ onClose, data }: ModalProps) => {
           </div>
 
           <div id="payment-result"></div>
+          
         </div>
       </div>
     </div>
