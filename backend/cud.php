@@ -74,6 +74,11 @@ class GenericDatabaseManager {
             throw new Exception("No data provided for create operation.");
         }
 
+        // Special handling for academic_files
+        if ($table === 'academic_files') {
+            return $this->createAcademicFile($data);
+        }
+
         $columns = array_keys($data);
         $placeholders = array_fill(0, count($columns), '?');
         $sql = "INSERT INTO {$table} (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $placeholders) . ")";
@@ -86,6 +91,86 @@ class GenericDatabaseManager {
             'message' => 'Record created successfully.',
             'inserted_id' => $this->pdo->lastInsertId()
         ];
+    }
+
+    private function createAcademicFile($data) {
+        // Validate required fields
+        $required_fields = ['drive_file_id', 'file_name', 'file_type', 'file_size', 'modified_date', 'category', 'level'];
+        foreach ($required_fields as $field) {
+            if (!isset($data[$field]) || empty($data[$field])) {
+                throw new Exception("Missing required field: {$field}");
+            }
+        }
+
+        // Validate category and level
+        $valid_categories = ['research', 'thesis', 'dissertation', 'assignment', 'project', 'presentation', 'other'];
+        $valid_levels = ['undergraduate', 'postgraduate'];
+        
+        if (!in_array($data['category'], $valid_categories)) {
+            throw new Exception('Invalid category selected');
+        }
+        
+        if (!in_array($data['level'], $valid_levels)) {
+            throw new Exception('Invalid level selected');
+        }
+
+        // Check if file already exists
+        $stmt = $this->pdo->prepare("SELECT id FROM academic_files WHERE drive_file_id = ?");
+        $stmt->execute([$data['drive_file_id']]);
+        $existing_file = $stmt->fetch();
+
+        if ($existing_file) {
+            // Update existing file
+            $sql = "
+                UPDATE academic_files 
+                SET file_name = ?, file_type = ?, file_size = ?, modified_date = ?, 
+                    description = ?, category = ?, level = ?, price = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE drive_file_id = ?
+            ";
+            $stmt = $this->pdo->prepare($sql);
+            $result = $stmt->execute([
+                $data['file_name'],
+                $data['file_type'],
+                $data['file_size'],
+                $data['modified_date'],
+                $data['description'] ?? null,
+                $data['category'],
+                $data['level'],
+                isset($data['price']) ? json_encode($data['price']) : null,
+                $data['drive_file_id']
+            ]);
+
+            return [
+                'success' => true,
+                'message' => 'File details updated successfully!',
+                'file_id' => $existing_file['id']
+            ];
+        } else {
+            // Insert new file
+            $sql = "
+                INSERT INTO academic_files 
+                (drive_file_id, file_name, file_type, file_size, modified_date, description, category, level, price)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ";
+            $stmt = $this->pdo->prepare($sql);
+            $result = $stmt->execute([
+                $data['drive_file_id'],
+                $data['file_name'],
+                $data['file_type'],
+                $data['file_size'],
+                $data['modified_date'],
+                $data['description'] ?? null,
+                $data['category'],
+                $data['level'],
+                isset($data['price']) ? json_encode($data['price']) : null
+            ]);
+
+            return [
+                'success' => true,
+                'message' => 'File details saved successfully!',
+                'file_id' => $this->pdo->lastInsertId()
+            ];
+        }
     }
 
     private function updateRecord($table, $data) {

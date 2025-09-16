@@ -1,9 +1,9 @@
-// src/hooks/useCUD.ts
-import { useState } from "react";
+// src/hooks/useCUD.tsx
+import { useState } from 'react';
 
 interface CUDOptions {
-  table: string; // e.g., 'website_config', 'academic_files'
-  action: "insert" | "update" | "delete";
+  table: string; // e.g., 'website_config', 'academic_files', 'payments'
+  action: 'insert' | 'update' | 'delete';
 }
 
 interface CUDResponse {
@@ -38,6 +38,10 @@ export const useCUD = () => {
         },
         body: JSON.stringify(payload),
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       const result: CUDResponse = await response.json();
 

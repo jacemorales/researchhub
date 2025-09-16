@@ -1,6 +1,8 @@
+// src/pages/Admin.tsx
 import React, { useEffect, useState, useRef } from "react";
 import Header from "./components/Header";
-
+import { useCUD } from "../hooks/useCUD";
+import Toast from "../hooks/Toast"; // Import your Toast component
 
 // 👇 DECLARE TYPES — NO MORE 'any'
 declare global {
@@ -59,6 +61,7 @@ interface UserProfile {
 const INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutes
 
 export default function Admin() {
+  const { execute, loading, error, success } = useCUD();
   const [tokenClient, setTokenClient] = useState<{
     requestAccessToken: (options?: { prompt?: string }) => void;
   } | null>(null);
@@ -67,7 +70,8 @@ export default function Admin() {
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<DriveFile | null>(null);
   const [showDriveContent, setShowDriveContent] = useState(false);
-  const [isGapiReady, setIsGapiReady] = useState(false); // 👈 NEW FLAG
+  const [isGapiReady, setIsGapiReady] = useState(false);
+  const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' } | null>(null);
 
   const inactivityTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -82,13 +86,21 @@ export default function Admin() {
     }
   };
 
+  // 👇 Helper function to show toast
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 3000);
+  };
+
   // 👇 LOAD GAPI + GIS
   useEffect(() => {
     const loadGapi = () => {
       window.gapi.load("client", async () => {
         await window.gapi.client.init({});
         await window.gapi.client.load("drive", "v3");
-        setIsGapiReady(true); // 👈 MARK AS READY
+        setIsGapiReady(true);
       });
     };
 
@@ -214,7 +226,7 @@ export default function Admin() {
       }
       inactivityTimer.current = setTimeout(() => {
         handleLogout();
-        alert("You were logged out due to inactivity.");
+        showToast("You were logged out due to inactivity.", 'error');
       }, INACTIVITY_TIMEOUT);
     };
 
@@ -240,30 +252,85 @@ export default function Admin() {
     (document.getElementById("fileDate") as HTMLInputElement).value = file.modifiedTime || "";
   };
 
+  // ✅ Updated handleSubmit to use toast notifications
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
 
-    const params = new URLSearchParams();
-    for (const [key, value] of formData.entries()) {
-      if (typeof value === "string") {
-        params.append(key, value);
-      }
+    // Get values from form
+    const drive_file_id = formData.get('fileDriveId') as string;
+    const file_name = formData.get('fileName') as string;
+    const file_type = formData.get('fileType') as string;
+    const file_size = formData.get('fileSize') as string;
+    const modified_date = formData.get('fileDate') as string;
+    const description = formData.get('fileDescription') as string;
+    const category = formData.get('fileCategory') as string;
+    const level = formData.get('fileLevel') as string;
+    const price_usd = parseFloat(formData.get('filePrice') as string) || 0;
+    const price_ngn = parseFloat(formData.get('filePriceNGN') as string) || 0;
+
+    // Validate required fields
+    if (!drive_file_id || !file_name || !category || !level) {
+      showToast('Please fill in all required fields', 'error');
+      return;
     }
 
+    // Validate category and level
+    const valid_categories = ['research', 'thesis', 'dissertation', 'assignment', 'project', 'presentation', 'other'];
+    const valid_levels = ['undergraduate', 'postgraduate'];
+    
+    if (!valid_categories.includes(category)) {
+      showToast('Invalid category selected', 'error');
+      return;
+    }
+    
+    if (!valid_levels.includes(level)) {
+      showToast('Invalid level selected', 'error');
+      return;
+    }
+
+    // Normalize prices
+    const price_usd_normalized = price_usd < 0 ? 0 : price_usd;
+    const price_ngn_normalized = price_ngn < 0 ? 0 : price_ngn;
+
+    // Build price JSON
+    const price = {
+      usd: parseFloat(price_usd_normalized.toFixed(2)),
+      ngn: parseFloat(price_ngn_normalized.toFixed(2))
+    };
+
+    // Convert date format
+    const modified_datetime = new Date(modified_date).toISOString().slice(0, 19).replace('T', ' ');
+
     try {
-      await fetch("http://localhost/save_file_details.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: params.toString(),
-      });
-      alert("File details saved!");
-      form.reset();
-      setSelectedFile(null);
+      // ✅ Use useCUD hook to save/update file
+      const result = await execute(
+        { table: 'academic_files', action: 'insert' },
+        {
+          drive_file_id,
+          file_name,
+          file_type,
+          file_size,
+          modified_date: modified_datetime,
+          description,
+          category,
+          level,
+          price
+        }
+      );
+
+      if (result.success) {
+        showToast("File details saved successfully!", 'success');
+        form.reset();
+        setSelectedFile(null);
+      } else {
+        showToast(`Error saving file details: ${result.error || 'Unknown error'}`, 'error');
+      }
     } catch (err) {
       if (err instanceof Error) {
         console.error("Error saving file details:", err.message);
+        showToast(`Error saving file details: ${err.message}`, 'error');
       }
     }
   };
@@ -312,6 +379,18 @@ export default function Admin() {
     <div className="admin-container">
       <Header/>
 
+      {/* ✅ Add Toast Container */}
+      {toast && (
+        <div className="toast-container">
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            duration={3000}
+            onClose={() => setToast(null)}
+          />
+        </div>
+      )}
+
       <div className="drive-content">
         {!userProfile ? (
           <div className="auth-prompt">
@@ -348,9 +427,8 @@ export default function Admin() {
               </button>
 
               <button onClick={handleLogout} className="btn-logout">
-            <i className="fas fa-sign-out-alt"></i> Sign Out
-          </button>
-          
+                <i className="fas fa-sign-out-alt"></i> Sign Out
+              </button>
             </div>
           </div>
         ) : (
@@ -544,10 +622,23 @@ export default function Admin() {
                 </div>
 
                 <div className="form-actions">
-                  <button type="submit" className="btn btn-primary">
-                    <i className="fas fa-save"></i> Save Details
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <><i className="fas fa-spinner fa-spin"></i> Saving...</>
+                    ) : (
+                      <><i className="fas fa-save"></i> Save Details</>
+                    )}
                   </button>
-                  <button type="button" className="btn btn-secondary" onClick={() => setSelectedFile(null)}>
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary" 
+                    onClick={() => setSelectedFile(null)}
+                    disabled={loading}
+                  >
                     <i className="fas fa-eraser"></i> Clear Form
                   </button>
                 </div>
