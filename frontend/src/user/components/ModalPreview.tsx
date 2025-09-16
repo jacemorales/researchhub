@@ -1,4 +1,4 @@
-import type { AcademicFile } from "../../hooks/useData";
+import type { AcademicFile } from "../../hooks/contexts/DataContext";
 
 interface ModalProps {
   onClose: () => void;
