@@ -1,5 +1,25 @@
 <?php
 // db_fetch.php - Fetches all data for the frontend
+// List of allowed origins
+$allowedOrigins = [
+    'http://localhost:5173',
+    'https://researchhubb.netlify.app'
+];
+
+// Get the Origin header from the request
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+// If the origin is in the allowed list, echo it back
+if (in_array($origin, $allowedOrigins)) {
+    header("Access-Control-Allow-Origin: $origin");
+} else {
+    // Optionally, deny the request or allow none
+    // header("Access-Control-Allow-Origin: null");
+    // http_response_code(403);
+    // exit;
+}
+
+// Always set these headers
 
 // Set headers for JSON response and CORS
 header("Content-Type: application/json");
@@ -7,8 +27,7 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header("Access-Control-Allow-Methods: GET, OPTIONS");
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
-header("Access-Control-Allow-Origin: http://localhost:5173");
-header("Access-Control-Allow-Origin: https://researchhubb.netlify.app");
+// header("Access-Control-Allow-Origin: https://researchhubb.netlify.app");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 
 // Handle preflight requests
