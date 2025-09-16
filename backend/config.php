@@ -18,6 +18,7 @@ define('DB_HOST', $_ENV['DB_HOST'] ?? 'localhost');
 define('DB_NAME', $_ENV['DB_NAME'] ?? 'research_hub');
 define('DB_USER', $_ENV['DB_USER'] ?? 'root');
 define('DB_PASS', $_ENV['DB_PASS'] ?? '');
+define('PAYSTACK_SECRET', $_ENV['PAYSTACK_SECRET'] ?? '');
 
 // Validate essential configuration
 if (empty(DB_NAME) || empty(DB_USER)) {

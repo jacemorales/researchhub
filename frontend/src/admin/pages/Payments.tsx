@@ -3,7 +3,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useData } from '../../hooks/useData';
 import { useCUD } from '../../hooks/useCUD';
 import type { Payment } from '../../hooks/contexts/DataContext';
-import Toast from '../../hooks/Toast';
+import {AdminToast} from '../../hooks/Toast';
 import Header from '../components/Header';
 
 const Payments: React.FC = () => {
@@ -345,7 +345,7 @@ const formatStatus = (status: string | null | undefined): string => {
             {/* Toast */}
             {toast && (
                 <div className="toast-container">
-                    <Toast
+                    <AdminToast
                         message={toast.message}
                         type={toast.type}
                         duration={3000}

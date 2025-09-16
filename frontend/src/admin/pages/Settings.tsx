@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useData } from '../../hooks/useData';
 import { useCUD } from '../../hooks/useCUD';
-import Toast from '../../hooks/Toast';
+import {AdminToast} from '../../hooks/Toast';
 import Header from '../components/Header';
 
 // Define a type for the full config object
@@ -31,7 +31,7 @@ const Settings: React.FC = () => {
     } | null>(null);
 
     // Configuration categories
-    const configCategories = {
+    const configCategories = React.useMemo(() => ({
         'site': 'Site Information',
         'author': 'Author Information',
         'contact': 'Contact Information',
@@ -43,7 +43,7 @@ const Settings: React.FC = () => {
         'purchase': 'Purchase Settings',
         'seo': 'SEO Settings',
         'technical': 'Technical Settings'
-    };
+    }), []);
 
     // Helper function to get icon class based on category
     const getCategoryIcon = (category: string): string => {
@@ -92,14 +92,14 @@ const Settings: React.FC = () => {
     };
 
     // Mock function to determine config category based on key (temporary)
-    const getMockConfigCategory = (key: string): string => {
+    const getMockConfigCategory = useCallback((key: string): string => {
         for (const [cat] of Object.entries(configCategories)) {
             if (key.toUpperCase().startsWith(cat.toUpperCase() + '_')) {
                 return cat;
             }
         }
         return 'site'; // Default category
-    };
+    }, [configCategories]);
 
     // Initialize config data from the hook ONCE
     useEffect(() => {
@@ -116,7 +116,7 @@ const Settings: React.FC = () => {
             });
             setConfigData(fullData);
         }
-    }, [initialWebsiteConfig]); // Only run when initialWebsiteConfig changes (e.g., on page load)
+    }, [initialWebsiteConfig, getMockConfigCategory]); // Only run when initialWebsiteConfig or getMockConfigCategory changes
 
     // Helper function to show toast
     const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'success', duration: number = 5000) => {
@@ -457,7 +457,7 @@ const Settings: React.FC = () => {
 
                 {toast && (
                     <div className="toast-container">
-                        <Toast
+                        <AdminToast
                             message={toast.message}
                             type={toast.type}
                             duration={5000}

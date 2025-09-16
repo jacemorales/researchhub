@@ -8,7 +8,10 @@ interface ToastProps {
   onClose: () => void;
 }
 
-const Toast: React.FC<ToastProps> = ({
+// ========================
+// ADMIN TOAST COMPONENT
+// ========================
+export const AdminToast: React.FC<ToastProps> = ({
   message,
   type,
   duration = 5000,
@@ -39,12 +42,62 @@ const Toast: React.FC<ToastProps> = ({
   };
 
   return (
-    <>
-    {/* {Admin Toast Component} */}
+    <div className={`toast toast-${type} toast-show`}>
+      <div className="toast-content">
+        <i className={`toast-icon ${getIconClass()}`}></i>
+        <span className="toast-message">{message}</span>
+        <button className="toast-close" onClick={onClose}>
+          <i className="fas fa-times"></i>
+        </button>
+      </div>
+      <div className="toast-progress">
+        <div className="toast-progress-bar"></div>
+      </div>
+    </div>
+  );
+};
+
+// ========================
+// USER TOAST COMPONENT
+// ========================
+export const UserToast: React.FC<ToastProps> = ({
+  message,
+  type,
+  duration = 5000,
+  onClose,
+}) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, duration);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [duration, onClose]);
+
+  const getIconClass = () => {
+    switch (type) {
+      case "success":
+        return "fas fa-check-circle";
+      case "error":
+        return "fas fa-times-circle";
+      case "warning":
+        return "fas fa-exclamation-triangle";
+      case "info":
+      default:
+        return "fas fa-info-circle";
+    }
+  };
+
+  return (
+    <div className="toast-container">
       <div className={`toast toast-${type} toast-show`}>
         <div className="toast-content">
-          <i className={`toast-icon ${getIconClass()}`}></i>
-          <span className="toast-message">{message}</span>
+          <div className="toast-icon">
+            <i className={getIconClass()}></i>
+          </div>
+          <div className="toast-message">{message}</div>
           <button className="toast-close" onClick={onClose}>
             <i className="fas fa-times"></i>
           </button>
@@ -53,36 +106,6 @@ const Toast: React.FC<ToastProps> = ({
           <div className="toast-progress-bar"></div>
         </div>
       </div>
-
-
-      {/* {User Toast Component} */}
-      {/* <div id="toast-container" className="toast-container">
-        <div className="toast toast-error toast-show">
-          <div className="toast-content">
-            <div className="toast-icon">
-              <i className="fas fa-times-circle"></i>
-            </div>
-            <div className="toast-message">
-              Payment failed: SQLSTATE[42S22]: Column not found: 1054 Unknown
-              column 'status' in 'field list'
-            </div>
-            <button
-              className="toast-close"
-            //   onclick="removeToast(this.parentElement.parentElement)"
-            >
-              <i className="fas fa-times"></i>
-            </button>
-          </div>
-          <div className="toast-progress">
-            <div
-              className="toast-progress-bar"
-            //   style="animation-duration: 5000ms;"
-            ></div>
-          </div>
-        </div>
-      </div> */}
-    </>
+    </div>
   );
 };
-
-export default Toast;

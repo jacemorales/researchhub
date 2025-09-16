@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import Header from "./components/Header";
 import { useCUD } from "../hooks/useCUD";
-import Toast from "../hooks/Toast"; // Import your Toast component
+import { AdminToast } from "../hooks/Toast"; // Import your Toast component
 
 // 👇 DECLARE TYPES — NO MORE 'any'
 declare global {
@@ -382,7 +382,7 @@ export default function Admin() {
       {/* ✅ Add Toast Container */}
       {toast && (
         <div className="toast-container">
-          <Toast
+          <AdminToast
             message={toast.message}
             type={toast.type}
             duration={3000}
