@@ -25,18 +25,22 @@ export interface AcademicFile {
 }
 
 export interface Payment {
-  id: number;
-  transaction_id: string;
-  file_id: number;
-  customer_name: string;
-  customer_email: string;
-  payment_method: 'paypal' | 'stripe' | 'bank_transfer' | 'crypto';
-  amount: number;
-  currency: string;
-  status: 'pending' | 'completed' | 'failed' | 'refunded';
-  payment_data: string | null; // JSON string
-  created_at: string;
-  updated_at: string;
+    id: number;
+    drive_file_id: number; // ✅ was file_id
+    customer_name: string;
+    customer_email: string;
+    amount: number;
+    currency: string;
+    payment_method: 'paypal' | 'stripe' | 'bank_transfer' | 'crypto' | 'paystack' | 'manual'; // ✅ added paystack, manual
+    reference: string | null; // ✅ was transaction_id
+    payment_status: 'pending' | 'completed' | 'failed' | 'refunded' | 'abandoned'; // ✅ was status
+    admin_status: 'pending' | 'approved' | 'rejected'; // ✅ new field
+    current_status: string; // ✅ new field
+    started_at: string; // ✅ new field (ISO string)
+    completed_at: string | null; // ✅ new field
+    transaction_logs: string | null; // ✅ new field (JSON string)
+    created_at: string;
+    updated_at: string;
 }
 
 export interface DataContextType {

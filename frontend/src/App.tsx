@@ -9,7 +9,7 @@ const PaymentScriptLoader = lazy(() => import("./payments/PaymentScriptLoader"))
 
 const Admin = lazy(() => import("./admin/Admin"));
  import Settings from "./admin/pages/Settings";
-// import Payments from "./admin/pages/Payments";
+import Payments from "./admin/pages/Payments";
 
 
 const Loading = () => <div>Loading...</div>;
@@ -31,7 +31,7 @@ const AppRoutes = () => {
           {/* Admin Route */}
           <Route path="/admin" element={<Admin />} />
           <Route path="/admin/settings" element={<Settings />} />
-          {/* <Route path="/admin/payments" element={<Payments/>} /> */}
+          <Route path="/admin/payments" element={<Payments/>} />
 
           {/* Fallback */}
           <Route path="*" element={<div>404 Not Found</div>} />

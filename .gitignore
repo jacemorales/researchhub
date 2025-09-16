@@ -2,14 +2,7 @@
 *node_modules/
 *vendor/
 
-# Build artifacts
-dist
-
-# Log files
-*.log
-
 # Environment variables
 *.env
 
-# IDE files
 

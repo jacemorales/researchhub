@@ -1,7 +1,7 @@
 // src/components/ModalPurchase.tsx
 import { useEffect } from "react";
 import { useData } from "../hooks/useData";
-import type { AcademicFile } from "../hooks/useData";
+import type { AcademicFile } from "../hooks/contexts/DataContext";
 
 // This type definition is necessary for the initPaymentModal function on the window object
 declare global {

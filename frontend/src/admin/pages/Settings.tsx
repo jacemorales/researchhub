@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useData } from '../../hooks/useData';
 import { useCUD } from '../../hooks/useCUD';
-import Toast from '../components/Toast';
+import Toast from '../../hooks/Toast';
 import Header from '../components/Header';
 
 // Define a type for the full config object

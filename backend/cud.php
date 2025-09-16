@@ -111,8 +111,44 @@ class GenericDatabaseManager {
                 'message' => 'Configuration updated successfully.',
                 'affected_rows' => $stmt->rowCount()
             ];
-        } else {
-            // Generic update for other tables (assuming 'id' is the primary key)
+        } 
+        // Special handling for 'payments'
+        else if ($table === 'payments') {
+            if (!isset($data['id'])) {
+                throw new Exception("For 'payments' update, 'id' is required.");
+            }
+
+            $updates = [];
+            $params = [':id' => $data['id']];
+
+            // Allow updating multiple fields
+            foreach ($data as $key => $value) {
+                if ($key !== 'id') {
+                    $updates[] = "{$key} = :{$key}";
+                    $params[":{$key}"] = $value;
+                }
+            }
+
+            if (empty($updates)) {
+                throw new Exception("No fields to update in payments table.");
+            }
+
+            $sql = "UPDATE {$table} SET " . implode(', ', $updates) . ", updated_at = CURRENT_TIMESTAMP WHERE id = :id";
+            $stmt = $this->pdo->prepare($sql);
+            $result = $stmt->execute($params);
+
+            if ($stmt->rowCount() === 0) {
+                throw new Exception("No payment record found with id: {$data['id']}");
+            }
+
+            return [
+                'success' => true,
+                'message' => 'Payment updated successfully.',
+                'affected_rows' => $stmt->rowCount()
+            ];
+        }
+        // Generic update for other tables (assuming 'id' is the primary key)
+        else {
             if (!isset($data['id'])) {
                 throw new Exception("For generic update, 'id' is required to identify the record.");
             }
@@ -151,7 +187,18 @@ class GenericDatabaseManager {
             $sql = "DELETE FROM {$table} WHERE config_key = :config_key";
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute([':config_key' => $data['config_key']]);
-        } else {
+        } 
+        // Special handling for 'payments'
+        else if ($table === 'payments') {
+            if (!isset($data['id'])) {
+                throw new Exception("For 'payments' delete, 'id' is required.");
+            }
+            $sql = "DELETE FROM {$table} WHERE id = :id";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([':id' => $data['id']]);
+        }
+        // Generic delete for other tables
+        else {
             if (!isset($data['id'])) {
                 throw new Exception("For generic delete, 'id' is required.");
             }

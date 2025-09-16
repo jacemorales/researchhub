@@ -40,6 +40,7 @@ const Toast: React.FC<ToastProps> = ({
 
   return (
     <>
+    {/* {Admin Toast Component} */}
       <div className={`toast toast-${type} toast-show`}>
         <div className="toast-content">
           <i className={`toast-icon ${getIconClass()}`}></i>
@@ -54,6 +55,7 @@ const Toast: React.FC<ToastProps> = ({
       </div>
 
 
+      {/* {User Toast Component} */}
       {/* <div id="toast-container" className="toast-container">
         <div className="toast toast-error toast-show">
           <div className="toast-content">
