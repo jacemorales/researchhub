@@ -20,7 +20,7 @@ if (in_array($origin, $allowedOrigins)) {
 
 // These headers must be sent regardless of origin
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, Cache-Control"); 
 header("Access-Control-Allow-Credentials: true");
 
 // Handle preflight OPTIONS request
