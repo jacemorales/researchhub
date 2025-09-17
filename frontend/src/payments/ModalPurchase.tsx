@@ -36,6 +36,7 @@ interface ErrorData {
 const PAYSTACK_PERCENTAGE_FEE = 0.015;
 
 const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
+  const BASE_URI = import.meta.env.VITE_API_BASE_URL;
   const { website_config } = useData();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -198,7 +199,7 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     }
 
     try {
-      const url = `${process.env.VITE_API_BASE_URL}/backend/payments/verify.php?reference=${encodeURIComponent(reference)}`;
+      const url = `${BASE_URI}/backend/payments/verify.php?reference=${encodeURIComponent(reference)}`;
       console.log("[verifyPayment] Fetching verification from:", url);
       
       const response = await fetch(url, {
@@ -443,7 +444,7 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
 
       console.log("[initializePayment] Sending payload:", payload);
 
-      const response = await fetch(`${process.env.VITE_API_BASE_URL}/backend/payments/initialize.php`, {
+      const response = await fetch(`${BASE_URI}/backend/payments/initialize.php`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
