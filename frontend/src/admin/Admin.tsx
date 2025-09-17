@@ -61,7 +61,7 @@ interface UserProfile {
 const INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutes
 
 export default function Admin() {
-  const { execute, loading, error, success } = useCUD();
+  const { execute, loading } = useCUD();
   const [tokenClient, setTokenClient] = useState<{
     requestAccessToken: (options?: { prompt?: string }) => void;
   } | null>(null);

@@ -1,5 +1,5 @@
 // Toast.tsx
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 
 interface ToastProps {
   message: string;
@@ -57,6 +57,9 @@ export const AdminToast: React.FC<ToastProps> = ({
   );
 };
 
+
+
+
 // ========================
 // USER TOAST COMPONENT
 // ========================
@@ -66,10 +69,17 @@ export const UserToast: React.FC<ToastProps> = ({
   duration = 5000,
   onClose,
 }) => {
+  const progressBarRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
     }, duration);
+
+    // ✅ Set animation duration dynamically
+    if (progressBarRef.current) {
+      progressBarRef.current.style.animationDuration = `${duration}ms`;
+    }
 
     return () => {
       clearTimeout(timer);
@@ -103,7 +113,11 @@ export const UserToast: React.FC<ToastProps> = ({
           </button>
         </div>
         <div className="toast-progress">
-          <div className="toast-progress-bar"></div>
+          <div 
+            ref={progressBarRef} 
+            className="toast-progress-bar"
+            style={{ animationDuration: `${duration}ms` }}
+          ></div>
         </div>
       </div>
     </div>
