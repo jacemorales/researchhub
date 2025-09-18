@@ -48,11 +48,12 @@ class DatabaseFetcher {
 
     public function getWebsiteConfig() {
         try {
-            $stmt = $this->pdo->query("SELECT config_key, config_value FROM website_config");
+            $stmt = $this->pdo->query("SELECT config_key, config_value, config_description FROM website_config");
             $results = $stmt->fetchAll();
             $config = [];
             foreach ($results as $row) {
                 $config[$row['config_key']] = $row['config_value'];
+                $config[$row['config_key'] . '_DESC'] = $row['config_description'];
             }
             return $config;
         } catch (PDOException $e) {

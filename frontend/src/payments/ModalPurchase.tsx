@@ -1,4 +1,65 @@
-// src/payments/ModalPurchase.tsx
+// Manual retry function - uses intelligent retry strategy
+  const handleRetryPayment = useCallback(async () => {
+    console.log("[handleRetryPayment] Manual retry triggered");
+    
+    setShowErrorState(false);
+    setErrorStateData(null);
+    setAutoRetryCount(0);
+    if (autoRetryTimer) {
+      clearTimeout(autoRetryTimer);
+      setAutoRetryTimer(null);
+    }
+
+    // Use the intelligent retry orchestrator
+    await executeRetryStrategy();
+  }, [executeRetryStrategy, autoRetryTimer]);
+
+  // WATCH POPUP CLOSE with enhanced verification logic
+  const watchPopupClose = useCallback((masterRef: string, popup: Window) => {
+    console.log("[watchPopupClose] Starting to monitor popup for masterRef:", masterRef);
+    
+    let checkCount = 0;
+    const maxChecks = 1200;
+    const popupRef = popup;
+
+    const checkInterval = setInterval(async () => {
+      checkCount++;
+      
+      if (checkCount >= maxChecks) {
+        clearInterval(checkInterval);
+        console.log("[watchPopupClose] Max checks reached, stopping monitor");
+        return;
+      }
+
+      if (!popupRef || popupRef.closed) {
+        clearInterval(checkInterval);
+        console.log("[watchPopupClose] Popup closed, checking initialization status before verification");
+        
+        // Wait a moment for state to settle
+        setTimeout(async () => {
+          // Double-check our request tracking before proceeding
+          if (initializeSuccess && currentPaystackRef) {
+            console.log("[watchPopupClose] ✅ Initialization confirmed successful, proceeding with verification");
+            const hasNetwork = await hasInternet();
+            if (hasNetwork) {
+              verifyPayment(masterRef);
+            } else {
+              setLastFailedOperation('verify');
+              showError('user', 'No internet connection', 'Cannot verify payment status');
+            }
+          } else {
+            console.log("[watchPopupClose] ⚠️ Initialization status unclear, using retry strategy");
+            setLastFailedOperation('verify');
+            executeRetryStrategy();
+          }
+        }, 1000);
+      }
+    }, 500);
+
+    return () => {
+      clearInterval(checkInterval);
+    };
+  }, [verifyPayment, initializeSuccess, currentPaystackRef, executeRetryStrategy]);// src/payments/ModalPurchase.tsx
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useData } from "../hooks/useData";
 import type { AcademicFile } from "../hooks/contexts/DataContext";
@@ -46,6 +107,13 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
   const [resultData, setResultData] = useState<ResultData | null>(null);
   const [showErrorState, setShowErrorState] = useState(false);
   const [errorStateData, setErrorStateData] = useState<ErrorData | null>(null);
+  const [autoRetryCount, setAutoRetryCount] = useState(0);
+  const [autoRetryTimer, setAutoRetryTimer] = useState<NodeJS.Timeout | null>(null);
+  
+  // 🔥 REQUEST TRACKING SYSTEM
+  const [initializeSuccess, setInitializeSuccess] = useState(false);
+  const [lastFailedOperation, setLastFailedOperation] = useState<'initialize' | 'verify' | null>(null);
+  
   const formRef = useRef<HTMLFormElement>(null);
   const isMounted = useRef(true);
   const modalBodyRef = useRef<HTMLDivElement>(null);
@@ -61,8 +129,11 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
       if (popupWindow && !popupWindow.closed) {
         popupWindow.close();
       }
+      if (autoRetryTimer) {
+        clearTimeout(autoRetryTimer);
+      }
     };
-  }, [popupWindow]);
+  }, [popupWindow, autoRetryTimer]);
 
   // Basic utilities
   const fmt = (n: number) => Number(n).toFixed(2);
@@ -70,6 +141,12 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
   const hideErrorState = () => {
     setShowErrorState(false);
     setErrorStateData(null);
+    setAutoRetryCount(0);
+    if (autoRetryTimer) {
+      clearTimeout(autoRetryTimer);
+      setAutoRetryTimer(null);
+    }
+    // ✅ DON'T reset request tracking here to maintain state consistency
   };
 
   // Internet check
@@ -102,6 +179,12 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     }
   };
 
+  // Phone number validation
+  const validatePhoneNumber = (phone: string): boolean => {
+    const cleanPhone = phone.replace(/\D/g, ''); // Remove non-digits
+    return cleanPhone.length >= 11;
+  };
+
   // Form validation
   const validateForm = useCallback(() => {
     if (!formRef.current || !data) return false;
@@ -109,6 +192,7 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     const formData = new FormData(formRef.current);
     const email = (formData.get("customer_email") as string)?.trim();
     const customerName = (formData.get("customer_name") as string)?.trim();
+    const customerPhone = (formData.get("customer_phone") as string)?.trim();
     const amount = parseFloat(data.price ?? "") || 0;
 
     if (!customerName) {
@@ -128,6 +212,17 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
       return false;
     }
 
+    // Phone number validation
+    if (!customerPhone) {
+      showToast("Please enter your phone number.", "error");
+      return false;
+    }
+
+    if (!validatePhoneNumber(customerPhone)) {
+      showToast("Invalid phone number. Must be at least 11 digits.", "error");
+      return false;
+    }
+
     if (!amount || amount <= 0) {
       showToast("Invalid product price. Please refresh and try again.", "error");
       return false;
@@ -135,7 +230,8 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
 
     return true;
   }, [data, showToast]);
-  const showError = (type: string, message: string, details: string = '') => {
+
+  const showError = (type: string, message: string, details: string = '', isRetryableError: boolean = false) => {
     const labels: Record<string, { title: string; icon: string }> = {
       developer: { title: 'Developer Error', icon: '🔧' },
       paystack: { title: 'Payment Service Error', icon: '⚡' },
@@ -154,55 +250,154 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     setShowErrorState(true);
     setShowResult(false);
     setIsProcessing(false);
+    setIsVerifying(false); // Stop loading when showing error
+    
+    // Start auto-retry for network issues OR retryable Paystack errors
+    if ((type === 'user' || (type === 'paystack' && isRetryableError)) && autoRetryCount < 3) {
+      startAutoRetry();
+    }
   };
 
-  // Reset to initial state
+  // 🔧 INTELLIGENT RETRY ORCHESTRATOR
+  const executeRetryStrategy = useCallback(async () => {
+    console.log("[executeRetryStrategy] Starting intelligent retry...");
+    console.log("[executeRetryStrategy] Tracking State:", {
+      initializeSuccess,
+      lastFailedOperation,
+      currentPaystackRef,
+      platformRef: localStorage.getItem('platformRef')
+    });
+
+    // First, check network connectivity
+    const hasNetwork = await hasInternet();
+    if (!hasNetwork) {
+      console.log("[executeRetryStrategy] No network detected, showing network error");
+      showError('user', 'No internet connection', 'Please check your connection and try again');
+      return;
+    }
+
+    console.log("[executeRetryStrategy] Network available, determining retry action...");
+
+    if (!initializeSuccess || lastFailedOperation === 'initialize') {
+      // Initialize failed or never succeeded, retry initialization
+      console.log("[executeRetryStrategy] Retrying initialization");
+      setLastFailedOperation(null);
+      initializePayment();
+    } else if (initializeSuccess && currentPaystackRef) {
+      // Initialize succeeded, retry verification
+      console.log("[executeRetryStrategy] Retrying verification for:", currentPaystackRef);
+      setLastFailedOperation(null);
+      setIsVerifying(true);
+      verifyPayment(currentPaystackRef);
+    } else {
+      // Inconsistent state, reset and retry from beginning
+      console.log("[executeRetryStrategy] Inconsistent state detected, starting fresh");
+      resetRequestTracking();
+      initializePayment();
+    }
+  }, [initializeSuccess, lastFailedOperation, currentPaystackRef]);
+
+  // 🔄 REQUEST TRACKING MANAGEMENT
+  const resetRequestTracking = useCallback(() => {
+    console.log("[resetRequestTracking] Clearing request tracking state");
+    setInitializeSuccess(false);
+    setLastFailedOperation(null);
+    setCurrentPaystackRef(null);
+  }, []);
+  const isRetryablePaystackError = (errorMessage: string, errorDetails: string = '') => {
+    const retryablePatterns = [
+      'Failed to connect',
+      'Couldn\'t connect to server',
+      'timeout',
+      'connection timed out',
+      'network error',
+      'Unable to verify payment status',
+      'cURL failed',
+      'Connection refused',
+      'No route to host',
+      'Temporary failure in name resolution'
+    ];
+    
+    const fullErrorText = `${errorMessage} ${errorDetails}`.toLowerCase();
+    return retryablePatterns.some(pattern => fullErrorText.includes(pattern.toLowerCase()));
+  };
+  const startAutoRetry = () => {
+    if (autoRetryTimer) {
+      clearTimeout(autoRetryTimer);
+    }
+    
+    const timer = setTimeout(async () => {
+      console.log(`[AutoRetry] Attempt ${autoRetryCount + 1} - Checking network and retrying...`);
+      
+      if (currentPaystackRef) {
+        setAutoRetryCount(prev => prev + 1);
+        hideErrorState();
+        setIsVerifying(true);
+        verifyPayment(currentPaystackRef);
+      } else if (autoRetryCount < 2) {
+        console.log(`[AutoRetry] No payment reference, retrying initialization...`);
+        setAutoRetryCount(prev => prev + 1);
+        hideErrorState();
+        initializePayment();
+      }
+    }, 5000);
+    
+    setAutoRetryTimer(timer);
+  };
+
+  // Reset to initial state - ONLY called from payment results "Try Again"
   const resetToInitialState = useCallback(() => {
+    console.log("[resetToInitialState] Resetting to initial modal state");
     setIsProcessing(false);
     setIsVerifying(false);
     setShowResult(false);
     setResultData(null);
     setShowErrorState(false);
     setErrorStateData(null);
-    setCurrentPaystackRef(null);
-    localStorage.removeItem('paystack_reference');
+    setAutoRetryCount(0);
+    if (autoRetryTimer) {
+      clearTimeout(autoRetryTimer);
+      setAutoRetryTimer(null);
+    }
+    
+    // ✅ Reset request tracking
+    resetRequestTracking();
+    
+    // ✅ Only clear platformRef as requested
+    localStorage.removeItem('platformRef');
     
     if (formRef.current) {
       formRef.current.reset();
     }
-  }, []);
+  }, [autoRetryTimer, resetRequestTracking]);
 
-  // VERIFY PAYMENT - Enhanced version with unmount resilience
-  const verifyPayment = useCallback(async (reference: string) => {
-    console.log("[verifyPayment] Starting verification for reference:", reference, "isMounted:", isMounted.current);
-    
-    // Always try to verify, even if component unmounted
-    // This ensures payment status is captured in backend
-    
-    if (isMounted.current) {
-      setIsVerifying(true);
-      setIsProcessing(false); // Turn off processing, turn on verifying
-      hideErrorState();
+  // VERIFY PAYMENT with enhanced error handling
+  const verifyPayment = useCallback(async (masterRef: string) => {
+    console.log("[verifyPayment] Starting verification for masterRef:", masterRef);
+    setIsVerifying(true);
+    setLastFailedOperation(null); // Clear any previous failure state
+
+    const platformRef = localStorage.getItem('platformRef');
+    if (!platformRef) {
+      console.error("[verifyPayment] Missing platformRef - initialize tracking issue");
+      setLastFailedOperation('verify');
+      showError('developer', 'Platform reference missing', 'Payment tracking error - will retry from initialization');
+      return;
     }
 
-    const online = await hasInternet();
-    if (!online) {
-      console.log("[verifyPayment] No internet connection");
-      if (isMounted.current) {
-        setIsVerifying(false);
-        showError('user', 'No internet connection', 'Cannot verify payment status without internet');
-      } else {
-        // Store for later retry even if component is unmounted
-        localStorage.setItem('pending_verification_ref', reference);
-      }
+    // Double-check network before proceeding
+    const hasNetwork = await hasInternet();
+    if (!hasNetwork) {
+      setLastFailedOperation('verify');
+      showError('user', 'No internet connection', 'Cannot verify payment status');
       return;
     }
 
     try {
-      const url = `${BASE_URI}/backend/payments/verify.php?reference=${encodeURIComponent(reference)}`;
-      console.log("[verifyPayment] Fetching verification from:", url);
-      
-      const response = await fetch(url, {
+      const verifyUrl = `${BASE_URI}/backend/payments/verify.php?master_reference=${encodeURIComponent(masterRef)}&platform_reference=${encodeURIComponent(platformRef)}`;
+      console.log("[verifyPayment] Calling verify URL:", verifyUrl);
+
+      const response = await fetch(verifyUrl, {
         method: 'GET',
         headers: { 
           'Accept': 'application/json',
@@ -226,185 +421,126 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
       }
       
       console.log("[verifyPayment] Parsed verification result:", parsedData);
-      
-      // Always clean up localStorage regardless of mount status
-      localStorage.removeItem('paystack_reference');
-      localStorage.removeItem('pending_verification_ref');
 
-      // Handle the verification response - Use payment_status for display
+      // 🔍 ENHANCED PAYSTACK ERROR HANDLING
+      if (parsedData.status === 'error' && parsedData.type === 'paystack') {
+        const errorMessage = parsedData.message || 'Unknown Paystack error';
+        const errorDetails = parsedData.details || '';
+        
+        console.log("[verifyPayment] Paystack error detected:", errorMessage);
+        
+        // Handle specific Paystack errors
+        if (errorMessage.includes('Transaction reference not found')) {
+          console.log("[verifyPayment] Transaction not found - initialization may have failed");
+          setLastFailedOperation('verify');
+          resetRequestTracking(); // Reset tracking and retry from initialization
+          const isRetryable = true;
+          showError('paystack', 'Transaction not found - will retry initialization', errorDetails, isRetryable);
+          return;
+        } else if (errorMessage.includes('reference already used') || errorMessage.includes('already processed')) {
+          console.log("[verifyPayment] Reference already used - clearing platformRef and retrying");
+          localStorage.removeItem('platformRef');
+          setLastFailedOperation('verify');
+          const isRetryable = true;
+          showError('paystack', 'Payment reference expired - generating new reference', errorDetails, isRetryable);
+          return;
+        } else {
+          // Other retryable Paystack errors
+          setLastFailedOperation('verify');
+          const isRetryable = isRetryablePaystackError(errorMessage, errorDetails);
+          showError('paystack', 'Verification failed', errorDetails, isRetryable);
+          return;
+        }
+      }
+      
       const status = parsedData.payment_status || parsedData.status || 'failed';
       const amount = parsedData.data?.amount ? (parsedData.data.amount / 100) : null;
       const paidAt = parsedData.data?.paid_at ? new Date(parsedData.data.paid_at).toLocaleString() : null;
 
-      // Check for file fetch errors and show developer error
+      // Clear localStorage ONLY on success
+      if (status === 'success') {
+        localStorage.removeItem('masterRef');
+        localStorage.removeItem('platformRef');
+        resetRequestTracking();
+      }
+
       if (parsedData.file_error || parsedData.download_error) {
-        if (isMounted.current) {
-          setIsVerifying(false);
-          showError('developer', 'File processing error', 
-            parsedData.file_error || parsedData.download_error || 'Failed to process payment file');
-        }
+        const errorMsg = parsedData.file_error || parsedData.download_error || 'Failed to process payment file';
+        showError('developer', 'File processing error', errorMsg);
         return;
       }
 
-      // Only update UI if component is still mounted
-      if (isMounted.current) {
-        setIsVerifying(false);
-        setResultData({
-          status,
-          reference,
-          amount: amount || undefined,
-          paidAt: paidAt || undefined,
-          data: parsedData.data
-        });
-        setShowResult(true);
+      // Stop loading states before showing result
+      setIsProcessing(false);
+      setIsVerifying(false);
 
-        // Show appropriate toast
-        if (status === 'success') {
-          showToast("Payment successful!", "success");
-          // Don't auto-close modal - let user manually close
-        } else if (status === 'pending') {
-          showToast('Payment is being processed. We\'ll notify you when complete.', 'info');
-        } else if (status === 'failed') {
-          showToast('Payment failed. Please try again.', 'error');
-        } else if (status === 'abandoned') {
-          showToast('Payment was abandoned.', 'warning');
-        }
-      } else {
-        console.log("[verifyPayment] Component unmounted, verification complete but UI not updated");
-        console.log("[verifyPayment] Payment status:", status);
-        
-        // Even if unmounted, we can show a basic notification to the user
-        if (typeof window !== 'undefined' && window.alert) {
-          if (status === 'success') {
-            window.alert('Payment successful!');
-          } else if (status === 'failed') {
-            window.alert('Payment failed. Please check your account or contact support.');
-          }
-        }
+      setResultData({
+        status,
+        reference: masterRef,
+        amount: amount || undefined,
+        paidAt: paidAt || undefined,
+        data: parsedData.data
+      });
+      setShowResult(true);
+
+      // Show appropriate toast
+      if (status === 'success') {
+        showToast("Payment successful!", "success");
+      } else if (status === 'pending') {
+        showToast('Payment is being processed. We\'ll notify you when complete.', 'info');
+      } else if (status === 'failed') {
+        showToast('Payment failed. Please try again.', 'error');
+      } else if (status === 'abandoned') {
+        showToast('Payment was abandoned.', 'warning');
       }
 
     } catch (error) {
       console.error("[verifyPayment] Verification failed:", error);
-      
-      if (isMounted.current) {
-        setIsVerifying(false);
-        showError('paystack', 'Verification failed', error instanceof Error ? error.message : 'Unknown error');
-      } else {
-        console.log("[verifyPayment] Component unmounted, verification failed:", error);
-        // Store failed reference for potential manual retry
-        localStorage.setItem('failed_verification_ref', reference);
-      }
+      setLastFailedOperation('verify');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const isRetryable = isRetryablePaystackError(errorMessage);
+      showError('paystack', 'Verification failed', errorMessage, isRetryable);
     }
-  }, [showToast]);
+  }, [showToast, BASE_URI, resetRequestTracking]);
 
-  // WATCH POPUP CLOSE - Fixed version with better reference handling
-  const watchPopupClose = useCallback((reference: string, popup: Window) => {
-    console.log("[watchPopupClose] Starting to monitor popup for reference:", reference);
+  // WATCH POPUP CLOSE
+  const watchPopupClose = useCallback((masterRef: string, popup: Window) => {
+    console.log("[watchPopupClose] Starting to monitor popup for masterRef:", masterRef);
     
     let checkCount = 0;
-    const maxChecks = 1200; // 10 minutes at 500ms intervals
-    let popupRef = popup; // Keep local reference
-    
+    const maxChecks = 1200;
+    const popupRef = popup;
+
     const checkInterval = setInterval(async () => {
       checkCount++;
       
       if (checkCount >= maxChecks) {
         clearInterval(checkInterval);
-        console.log("[watchPopupClose] Timeout reached, stopping popup monitoring");
         return;
       }
 
-      if (!popupRef) {
-        console.log("[watchPopupClose] Popup reference is null");
+      if (!popupRef || popupRef.closed) {
         clearInterval(checkInterval);
-        return;
-      }
-
-      try {
-        // Check if popup is closed
-        if (popupRef.closed) {
-          clearInterval(checkInterval);
-          console.log("[watchPopupClose] Popup closed detected, starting verification");
-          
-          if (!isMounted.current) {
-            console.log("[watchPopupClose] Component unmounted, skipping verification");
-            return;
-          }
-          
-          // Add a small delay to ensure any final redirects are complete
-          setTimeout(async () => {
-            console.log("[watchPopupClose] Starting delayed verification, isMounted:", isMounted.current);
-            
-            // Even if component unmounts, we should still try to verify
-            // This ensures payment status is captured
-            const online = await hasInternet();
-            if (!online) {
-              console.log("[watchPopupClose] No internet, storing reference for later");
-              // Store reference in localStorage for potential retry
-              localStorage.setItem('pending_verification_ref', reference);
-              
-              if (isMounted.current) {
-                showError('user', 'No internet connection', 'Cannot verify payment status. Retrying automatically...');
-                // Set up auto-retry when connection is restored
-                const retryInterval = setInterval(async () => {
-                  const isOnline = await hasInternet();
-                  if (isOnline) {
-                    clearInterval(retryInterval);
-                    localStorage.removeItem('pending_verification_ref');
-                    verifyPayment(reference);
-                  }
-                }, 5000);
-                
-                // Clear retry interval after 5 minutes
-                setTimeout(() => clearInterval(retryInterval), 300000);
-              }
-              return;
-            }
-
-            console.log("[watchPopupClose] Internet available, proceeding with verification");
-            // Clear any pending verification reference
-            localStorage.removeItem('pending_verification_ref');
-            
-            // Proceed with verification even if component unmounted
-            // The verification will still complete and update localStorage/backend
-            verifyPayment(reference);
-          }, 1000);
-        }
-      } catch (error) {
-        // Handle cross-origin access errors or other popup issues
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.log("[watchPopupClose] Error checking popup status (likely closed):", errorMessage);
-        clearInterval(checkInterval);
+        console.log("[watchPopupClose] Popup closed, starting verification");
         
-        if (!isMounted.current) return;
-        
-        setTimeout(async () => {
-          if (!isMounted.current) return;
-          const online = await hasInternet();
-          if (online) {
-            verifyPayment(reference);
-          } else {
-            showError('user', 'No internet connection', 'Cannot verify payment status');
-          }
+        setTimeout(() => {
+          verifyPayment(masterRef);
         }, 1000);
       }
-    }, 500); // Check every 500ms for more responsive detection
+    }, 500);
 
-    // Cleanup function
     return () => {
       clearInterval(checkInterval);
-      popupRef = window;
     };
   }, [verifyPayment]);
 
-  // Initialize payment
+  // Initialize payment with comprehensive tracking
   const initializePayment = useCallback(async () => {
     if (!data || !formRef.current) {
       console.error("[initializePayment] Missing data or form reference");
       return;
     }
 
-    // Validate form before proceeding
     if (!validateForm()) {
       return;
     }
@@ -412,37 +548,54 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     const formData = new FormData(formRef.current);
     const email = (formData.get("customer_email") as string)?.trim();
     const customerName = (formData.get("customer_name") as string)?.trim();
+    const customerPhone = (formData.get("customer_phone") as string)?.trim();
     const amount = parseFloat(data.price ?? "") || 0;
-    const fileId = data.id;
+    const fileId = data.drive_file_id;
 
+    console.log("[initializePayment] Starting payment initialization...");
     setIsProcessing(true);
     setIsVerifying(false);
+    setInitializeSuccess(false); // ✅ Reset initialize tracking
+    setLastFailedOperation(null);
     hideErrorState();
     setShowResult(false);
-    console.log("[initializePayment] Starting payment initialization...");
 
-    const online = await hasInternet();
-    if (!online) {
+    // First check network
+    const hasNetwork = await hasInternet();
+    if (!hasNetwork) {
       setIsProcessing(false);
+      setLastFailedOperation('initialize');
       showError('user', 'No internet connection', 'Please check your connection and try again');
       return;
     }
 
     try {
-      const paystackRef = `PS_${Date.now()}_${Math.random().toString(36).substr(2, 8).toUpperCase()}`;
-      setCurrentPaystackRef(paystackRef);
-      localStorage.setItem('paystack_reference', paystackRef);
+      // Get or generate masterRef
+      let masterRef = localStorage.getItem('masterRef');
+      if (!masterRef) {
+        masterRef = `RESEARCH_HUB_${Math.random().toString(36).substr(2, 8).toUpperCase()}`;
+        localStorage.setItem('masterRef', masterRef);
+        console.log("[initializePayment] Generated new masterRef:", masterRef);
+      } else {
+        console.log("[initializePayment] Reusing existing masterRef:", masterRef);
+      }
+
+      // Generate NEW platformRef every time
+      const platformRef = `PS_${Date.now()}_${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+      localStorage.setItem('platformRef', platformRef);
+      console.log("[initializePayment] Generated new platformRef:", platformRef);
 
       const payload = { 
         email, 
         amount, 
-        reference: paystackRef,
-        file_id: fileId,
+        current_payment_platform_reference: platformRef,
+        drive_file_id: fileId,
         customer_name: customerName,
-        reference_stat: `RESEARCH_HUB_${Math.random().toString(36).substr(2, 8).toUpperCase()}`
+        customer_phone: customerPhone,
+        reference_stat: masterRef
       };
 
-      console.log("[initializePayment] Sending payload:", payload);
+      console.log("[initializePayment] Sending payload to initialize.php:", payload);
 
       const response = await fetch(`${BASE_URI}/backend/payments/initialize.php`, {
         method: 'POST',
@@ -454,7 +607,7 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
       });
 
       const responseText = await response.text();
-      console.log("[initializePayment] Response:", responseText.substring(0, 200));
+      console.log("[initializePayment] Raw response:", responseText.substring(0, 200));
       
       if (!response.ok) {
         throw new Error(`Server error: ${response.status}`);
@@ -466,14 +619,28 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
       } catch {
         throw new Error('Invalid server response format');
       }
+
+      // Check for Paystack-specific errors in response
+      if (result.status === 'error' && result.type === 'paystack') {
+        console.log("[initializePayment] Paystack error in response:", result.message);
+        setLastFailedOperation('initialize');
+        const isRetryable = isRetryablePaystackError(result.message, result.details || '');
+        showError('paystack', result.message || 'Payment initialization failed', result.details || '', isRetryable);
+        return;
+      }
       
       if (result.status !== 'success' || !result.data?.authorization_url) {
         throw new Error(result.message || 'Initialization failed');
       }
 
-      console.log("[initializePayment] Initialization successful, opening popup");
+      // ✅ SUCCESSFUL INITIALIZATION - Update tracking
+      console.log("[initializePayment] ✅ Initialization successful!");
+      setInitializeSuccess(true);
+      setCurrentPaystackRef(masterRef);
+      setLastFailedOperation(null);
 
-      // Open Paystack popup
+      console.log("[initializePayment] Opening popup with URL:", result.data.authorization_url);
+
       const url = result.data.authorization_url;
       const w = 600, h = 700;
       const left = (screen.width / 2) - (w / 2);
@@ -486,8 +653,7 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
 
       if (popup) {
         setPopupWindow(popup);
-        // Start watching for popup close with direct popup reference
-        watchPopupClose(paystackRef, popup);
+        watchPopupClose(masterRef, popup);
         console.log("[initializePayment] Popup opened successfully, monitoring started");
       } else {
         throw new Error('Popup was blocked. Please allow popups for this site.');
@@ -496,10 +662,12 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     } catch (error) {
       console.error("[initializePayment] Payment initialization failed:", error);
       setIsProcessing(false);
+      setLastFailedOperation('initialize');
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      showError('paystack', 'Payment initialization failed', errorMessage);
+      const isRetryable = isRetryablePaystackError(errorMessage);
+      showError('paystack', 'Payment initialization failed', errorMessage, isRetryable);
     }
-  }, [data, validateForm, watchPopupClose]);
+  }, [data, validateForm, watchPopupClose, BASE_URI]);
 
   // Handle form submit
   const handleSubmit = useCallback((e: React.FormEvent) => {
@@ -508,41 +676,53 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     initializePayment();
   }, [initializePayment]);
 
-  // Manual retry function
+  // Manual retry function - intelligently retry based on current state
   const handleRetryPayment = useCallback(async () => {
-    if (!currentPaystackRef) {
-      resetToInitialState();
-      return;
-    }
-
-    const online = await hasInternet();
-    if (!online) {
-      const errorData = {
-        type: 'user',
-        title: 'Connection Issue',
-        icon: '🌐',
-        message: 'Still no internet connection. Please check your connection and try again.',
-        details: ''
-      };
-      setErrorStateData(errorData);
-      setShowErrorState(true);
-      setShowResult(false);
-      setIsProcessing(false);
-      return;
-    }
-
+    console.log("[handleRetryPayment] Manual retry triggered");
+    
     setShowErrorState(false);
     setErrorStateData(null);
-    setIsProcessing(true);
-    verifyPayment(currentPaystackRef);
-  }, [currentPaystackRef, resetToInitialState, verifyPayment]);
+    setAutoRetryCount(0);
+    if (autoRetryTimer) {
+      clearTimeout(autoRetryTimer);
+      setAutoRetryTimer(null);
+    }
+
+    // Determine what to retry based on current state
+    if (currentPaystackRef && localStorage.getItem('platformRef')) {
+      // We have both references, payment was initialized successfully, retry verification
+      console.log("[handleRetryPayment] Retrying verification for:", currentPaystackRef);
+      setIsVerifying(true);
+      verifyPayment(currentPaystackRef);
+    } else {
+      // Payment initialization failed or incomplete, retry initialization
+      console.log("[handleRetryPayment] Retrying initialization");
+      initializePayment();
+    }
+  }, [currentPaystackRef, verifyPayment, initializePayment, autoRetryTimer]);
 
   // Result action handlers
   const handleTryAgain = useCallback(() => {
+    // This is the "Try Again" from payment results - reset to original state
+    console.log("[handleTryAgain] Resetting to original state from payment results");
     setShowResult(false);
+    setIsProcessing(false);
+    setIsVerifying(false);
+    setShowErrorState(false);
+    setErrorStateData(null);
     setCurrentPaystackRef(null);
-    localStorage.removeItem('paystack_reference');
-  }, []);
+    setAutoRetryCount(0);
+    if (autoRetryTimer) {
+      clearTimeout(autoRetryTimer);
+      setAutoRetryTimer(null);
+    }
+    // Only clear platformRef, keep masterRef for potential retry
+    localStorage.removeItem('platformRef');
+    
+    if (formRef.current) {
+      formRef.current.reset();
+    }
+  }, [autoRetryTimer]);
 
   const handleNewPayment = useCallback(() => {
     setShowResult(false);
@@ -550,11 +730,13 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
       formRef.current.reset();
     }
     setCurrentPaystackRef(null);
-    localStorage.removeItem('paystack_reference');
+    localStorage.removeItem('masterRef');
+    localStorage.removeItem('platformRef');
   }, []);
 
   const handleCheckStatus = useCallback(() => {
     if (currentPaystackRef) {
+      setIsVerifying(true);
       verifyPayment(currentPaystackRef);
     }
   }, [currentPaystackRef, verifyPayment]);
@@ -584,21 +766,21 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
         </div>
 
         <div className="modal-body" ref={modalBodyRef}>
-          {/* Processing/Verifying Loader */}
-          {(isProcessing || isVerifying) && (
-            <div className="payment-status loader-container" style={{ display: 'flex' }}>
+          {/* Processing/Verifying Loader - Only show when not showing result or error */}
+          {(isProcessing || isVerifying) && !showResult && !showErrorState && (
+            <div className="payment-status loader-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
               <div className="status-icon">
                 <i className="fas fa-spinner fa-spin"></i>
               </div>
-              <p className="status-text">
+              <p className="status-text" style={{ marginLeft: '10px' }}>
                 {isVerifying ? 'Verifying... please wait' : 'Processing... please wait'}
               </p>
             </div>
           )}
 
-          {/* Error State */}
+          {/* Error State with Auto-retry info */}
           {showErrorState && errorStateData && (
-            <div className={`error-state ${errorStateData.type}`}>
+            <div className={`error-state ${errorStateData.type}`} style={{ padding: '20px', margin: '20px 0', border: '1px solid #eee', borderRadius: '8px', backgroundColor: '#fff' }}>
               <div className="error-content">
                 <div className="error-icon">{errorStateData.icon}</div>
                 <h3>{errorStateData.title}</h3>
@@ -608,27 +790,44 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
                     <small>{errorStateData.details}</small>
                   </p>
                 )}
-                {errorStateData.type === 'user' ? (
-                  <button onClick={handleRetryPayment} className="btn btn-retry">
-                    Retry
-                  </button>
-                ) : (
-                  <button onClick={resetToInitialState} className="btn btn-try-again">
-                    Try Again
-                  </button>
+                {errorStateData.type === 'user' && autoRetryCount < 3 && (
+                  <p className="auto-retry-info" style={{ fontSize: '0.9em', color: '#6c757d', marginTop: '10px' }}>
+                    Auto-retrying in 5 seconds... (Attempt {autoRetryCount + 1}/3)
+                  </p>
                 )}
+                {errorStateData.type === 'paystack' && autoRetryCount < 3 && (
+                  <p className="auto-retry-info" style={{ fontSize: '0.9em', color: '#6c757d', marginTop: '10px' }}>
+                    Auto-retrying in 5 seconds... (Attempt {autoRetryCount + 1}/3)
+                  </p>
+                )}
+                <button 
+                  onClick={handleRetryPayment} 
+                  className="btn btn-retry" 
+                  style={{ 
+                    marginTop: '15px', 
+                    padding: '10px 20px', 
+                    backgroundColor: '#007bff', 
+                    color: 'white', 
+                    border: 'none', 
+                    borderRadius: '4px', 
+                    cursor: 'pointer' 
+                  }}
+                >
+                  {errorStateData.type === 'user' ? 'Retry Now' : 'Retry Payment'}
+                </button>
               </div>
             </div>
           )}
 
           {/* Payment Result */}
           {showResult && resultData && (
-            <div id="payment-result" style={{ display: 'block' }}>
-              <div className={`payment-result ${resultData.status}`}>
+            <div id="payment-result" style={{ display: 'block', padding: '20px', margin: '20px 0', border: '1px solid #eee', borderRadius: '8px', backgroundColor: '#fff' }}>
+              <div className={`payment-result ${resultData.status}`} style={{ textAlign: 'center' }}>
                 <h3 style={{ 
                   color: resultData.status === 'success' ? '#47c363' : 
                         resultData.status === 'pending' ? '#007bff' :
-                        resultData.status === 'abandoned' ? '#fd7e14' : '#fc544b'
+                        resultData.status === 'abandoned' ? '#fd7e14' : '#fc544b',
+                  marginBottom: '15px'
                 }}>
                   {resultData.status === 'success' ? 'Payment successful!' :
                    resultData.status === 'pending' ? 'Payment is being processed...' :
@@ -642,19 +841,19 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
                 {resultData.paidAt && (
                   <p><small>Paid: {resultData.paidAt}</small></p>
                 )}
-                <div className="action-buttons">
+                <div className="action-buttons" style={{ marginTop: '20px' }}>
                   {resultData.status === 'pending' && (
-                    <button onClick={handleCheckStatus} className="btn check-status">
+                    <button onClick={handleCheckStatus} className="btn check-status" style={{ margin: '0 10px', padding: '10px 20px', backgroundColor: '#17a2b8', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
                       Check Status
                     </button>
                   )}
                   {resultData.status !== 'success' && (
-                    <button onClick={handleTryAgain} className="btn try-again">
+                    <button onClick={handleTryAgain} className="btn try-again" style={{ margin: '0 10px', padding: '10px 20px', backgroundColor: '#ffc107', color: 'black', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
                       Try Again
                     </button>
                   )}
                   {resultData.status === 'success' && (
-                    <button onClick={handleNewPayment} className="btn btn-primary">
+                    <button onClick={handleNewPayment} className="btn btn-primary" style={{ margin: '0 10px', padding: '10px 20px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
                       New Payment
                     </button>
                   )}
@@ -667,8 +866,8 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
           {!isProcessing && !isVerifying && !showErrorState && !showResult && (
             <div className="payment-form-container">
               <form ref={formRef} onSubmit={handleSubmit} id="payment-form" data-file-id={data.id}>
-                <div className="form-row">
-                  <div className="form-group">
+                <div className="form-row" style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
+                  <div className="form-group" style={{ flex: 1 }}>
                     <label htmlFor="fullName">
                       {website_config?.PURCHASE_NAME_LABEL}
                     </label>
@@ -677,9 +876,11 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
                       id="fullName"
                       name="customer_name"
                       placeholder="Enter your name"
+                      required
+                      style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px' }}
                     />
                   </div>
-                  <div className="form-group">
+                  <div className="form-group" style={{ flex: 1 }}>
                     <label htmlFor="email">
                       {website_config?.PURCHASE_EMAIL_LABEL}
                     </label>
@@ -688,41 +889,49 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
                       id="email"
                       name="customer_email"
                       placeholder="Enter your email"
+                      required
+                      style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px' }}
                     />
                   </div>
                 </div>
 
-                <div className="form-group">
+                <div className="form-group" style={{ marginBottom: '20px' }}>
                   <label htmlFor="phone">
-                    {website_config?.PURCHASE_PHONE_LABEL}
+                    {website_config?.PURCHASE_PHONE_LABEL} <span style={{ color: '#dc3545' }}>*</span>
                   </label>
                   <input
                     type="tel"
                     id="phone"
                     name="customer_phone"
-                    placeholder="Optional"
+                    placeholder="Enter your phone number (e.g., +1234567890)"
+                    required
+                    minLength={11}
+                    style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px' }}
                   />
+                  <small style={{ color: '#6c757d', fontSize: '0.875em' }}>
+                    Phone number must be at least 11 digits
+                  </small>
                 </div>
 
-                <div className="payment-summary">
+                <div className="payment-summary" style={{ background: '#f8f9fa', padding: '20px', borderRadius: '8px', marginBottom: '20px' }}>
                   <h3>{website_config?.PURCHASE_SUMMARY_TITLE}</h3>
-                  <div className="summary-row">
+                  <div className="summary-row" style={{ display: 'flex', justifyContent: 'space-between', margin: '8px 0' }}>
                     <span>{website_config?.PURCHASE_PRODUCT_LABEL}:</span>
                     <span id="summaryProduct">{data.file_name}</span>
                   </div>
-                  <div className="summary-row">
+                  <div className="summary-row" style={{ display: 'flex', justifyContent: 'space-between', margin: '8px 0' }}>
                     <span>{website_config?.PURCHASE_PRICE_LABEL}:</span>
                     <span className="amount" id="summaryPrice">
                       ${fmt(parseFloat(data.price ?? ""))}
                     </span>
                   </div>
-                  <div className="summary-row">
+                  <div className="summary-row" style={{ display: 'flex', justifyContent: 'space-between', margin: '8px 0' }}>
                     <span>{website_config?.PURCHASE_TAX_LABEL}:</span>
                     <span id="fee-amount">
                       ${fmt(parseFloat(data.price ?? "") * PAYSTACK_PERCENTAGE_FEE)}
                     </span>
                   </div>
-                  <div className="summary-row total">
+                  <div className="summary-row total" style={{ display: 'flex', justifyContent: 'space-between', margin: '8px 0', fontWeight: 'bold', borderTop: '1px solid #eee', paddingTop: '10px' }}>
                     <span>{website_config?.PURCHASE_TOTAL_LABEL}:</span>
                     <span id="total-amount">
                       ${fmt(parseFloat(data.price ?? "") * (1 + PAYSTACK_PERCENTAGE_FEE))}
@@ -730,42 +939,42 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
                   </div>
                 </div>
 
-                <div className="payment-methods">
+                <div className="payment-methods" style={{ marginBottom: '20px' }}>
                   <h3>{website_config?.PURCHASE_METHOD_TITLE}</h3>
-                  <div className="payment-options">
-                    <label className="payment-option">
+                  <div className="payment-options" style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+                    <label className="payment-option" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', border: '1px solid #ddd', borderRadius: '6px' }}>
                       <input
                         type="radio"
                         name="payment_method"
                         value="stripe"
                         defaultChecked
                       />
-                      <div className="payment-card">
+                      <div className="payment-card" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <i className="fab fa-cc-stripe"></i>
                         <span>{website_config?.PURCHASE_STRIPE_LABEL}</span>
                       </div>
                     </label>
-                    <label className="payment-option">
+                    <label className="payment-option" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', border: '1px solid #ddd', borderRadius: '6px' }}>
                       <input type="radio" name="payment_method" value="paypal" />
-                      <div className="payment-card">
+                      <div className="payment-card" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <i className="fab fa-paypal"></i>
                         <span>{website_config?.PURCHASE_PAYPAL_LABEL}</span>
                       </div>
                     </label>
-                    <label className="payment-option">
+                    <label className="payment-option" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', border: '1px solid #ddd', borderRadius: '6px' }}>
                       <input
                         type="radio"
                         name="payment_method"
                         value="bank_transfer"
                       />
-                      <div className="payment-card">
+                      <div className="payment-card" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <i className="fas fa-university"></i>
                         <span>{website_config?.PURCHASE_BANK_LABEL}</span>
                       </div>
                     </label>
-                    <label className="payment-option">
+                    <label className="payment-option" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', border: '1px solid #ddd', borderRadius: '6px' }}>
                       <input type="radio" name="payment_method" value="crypto" />
-                      <div className="payment-card">
+                      <div className="payment-card" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <i className="fab fa-bitcoin"></i>
                         <span>{website_config?.PURCHASE_CRYPTO_LABEL}</span>
                       </div>
@@ -773,12 +982,20 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
                   </div>
                 </div>
 
-                <div className="form-actions">
+                <div className="form-actions" style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
                   <button
                     type="submit"
                     className="btn btn-primary"
                     id="pay-btn"
                     disabled={isProcessing || isVerifying}
+                    style={{ 
+                      padding: '12px 30px', 
+                      background: '#6777ef', 
+                      color: 'white', 
+                      border: 'none', 
+                      borderRadius: '6px',
+                      cursor: (isProcessing || isVerifying) ? 'not-allowed' : 'pointer'
+                    }}
                   >
                     <i className="fas fa-lock"></i> {website_config?.PURCHASE_BUTTON}
                   </button>
@@ -787,6 +1004,14 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
                     className="btn btn-secondary"
                     onClick={onClose}
                     disabled={isProcessing || isVerifying}
+                    style={{ 
+                      padding: '12px 30px', 
+                      background: '#6c757d', 
+                      color: 'white', 
+                      border: 'none', 
+                      borderRadius: '6px',
+                      cursor: (isProcessing || isVerifying) ? 'not-allowed' : 'pointer'
+                    }}
                   >
                     {website_config?.PURCHASE_CANCEL}
                   </button>

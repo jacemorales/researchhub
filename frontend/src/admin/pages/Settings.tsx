@@ -82,9 +82,9 @@ const Settings: React.FC = () => {
             return 'textarea';
         } else if (key.includes('IMG')) {
             return 'image';
-        } else if (key === 'MAINTENANCE_MODE') {
+        } else if (key === 'TECHNICAL_MAINTENANCE_MODE') {
             return 'boolean';
-        } else if (key === 'MAX_FILE_SIZE') {
+        } else if (key === 'TECHNICAL_MAX_FILE_SIZE') {
             return 'number';
         } else {
             return 'text';
@@ -101,22 +101,33 @@ const Settings: React.FC = () => {
         return 'site'; // Default category
     }, [configCategories]);
 
-    // Initialize config data from the hook ONCE
-    useEffect(() => {
-        if (initialWebsiteConfig) {
-            const fullData: { [key: string]: FullConfigItem } = {};
-            Object.keys(initialWebsiteConfig).forEach(key => {
-                fullData[key] = {
-                    config_key: key,
-                    config_value: initialWebsiteConfig[key],
-                    config_type: getMockConfigType(key),
-                    config_category: getMockConfigCategory(key),
-                    config_description: `Description for ${key}`
-                };
-            });
-            setConfigData(fullData);
-        }
-    }, [initialWebsiteConfig, getMockConfigCategory]); // Only run when initialWebsiteConfig or getMockConfigCategory changes
+
+// Initialize config data from the hook
+useEffect(() => {
+    if (initialWebsiteConfig) {
+        const fullData: { [key: string]: FullConfigItem } = {};
+        Object.keys(initialWebsiteConfig).forEach(key => {
+            // ✅ Skip description keys
+            if (key.endsWith('_DESC')) {
+                return;
+            }
+            
+            // ✅ Get the description using the _DESC suffix
+            const descKey = key + '_DESC';
+            const description = initialWebsiteConfig[descKey] || `Description for ${formatConfigKey(key)}`;
+            
+            fullData[key] = {
+                config_key: key,
+                config_value: initialWebsiteConfig[key],
+                config_type: getMockConfigType(key),
+                config_category: getMockConfigCategory(key),
+                config_description: description // ✅ Use real description
+            };
+        });
+        setConfigData(fullData);
+    }
+}, [initialWebsiteConfig, getMockConfigCategory]);
+
 
     // Helper function to show toast
     const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'success', duration: number = 5000) => {

@@ -112,7 +112,7 @@ const ModalContact = ({ onClose }: ModalProps) => {
           throw new Error(data?.error || "Failed to send message");
         }
       })
-      .catch((err: any) => {
+      .catch((err) => {
         setStatusTitle("Message Failed");
         setStatusMessage(String(err?.message || err));
         setStatusIcon("times");

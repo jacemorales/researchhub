@@ -29,18 +29,17 @@ export interface Payment {
     drive_file_id: number; // ✅ was file_id
     customer_name: string;
     customer_email: string;
+    customer_phone: string;
     amount: number;
     currency: string;
-    payment_method: 'paypal' | 'stripe' | 'bank_transfer' | 'crypto' | 'paystack' | 'manual'; // ✅ added paystack, manual
+    payment_method: 'paypal' | 'stripe' | 'bank_transfer' | 'crypto' | 'nowpayments' | 'paystack' | 'manual'; // ✅ added paystack, manual
     reference: string | null; // ✅ was transaction_id
     payment_status: 'pending' | 'completed' | 'failed' | 'refunded' | 'abandoned'; // ✅ was status
     admin_status: 'pending' | 'approved' | 'rejected'; // ✅ new field
-    current_status: string; // ✅ new field
     started_at: string; // ✅ new field (ISO string)
+    updated_at: string;
     completed_at: string | null; // ✅ new field
     transaction_logs: string | null; // ✅ new field (JSON string)
-    created_at: string;
-    updated_at: string;
 }
 
 export interface DataContextType {

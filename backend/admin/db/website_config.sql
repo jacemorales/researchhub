@@ -27,8 +27,8 @@ INSERT INTO website_config (config_key, config_value, config_type, config_catego
 -- Site Information
 ('SITE_NAME', 'Research Hub', 'text', 'site', 'Website name displayed in header and title'),
 ('SITE_DESC', 'Premium Academic Resources', 'text', 'site', 'Website description/tagline'),
-('RESOURCE_BIO', 'Empowering academic excellence through mentorship and research leadership', 'textarea', 'site', 'Main resource section description'),
-('RESOURCES_TITLE', 'Academic Resources', 'text', 'site', 'Main resources section title'),
+('SITE_RESOURCE_BIO', 'Empowering academic excellence through mentorship and research leadership', 'textarea', 'site', 'Main resource section description'),
+('SITE_RESOURCES_TITLE', 'Academic Resources', 'text', 'site', 'Main resources section title'),
 
 -- Author Information
 ('AUTHOR_NAME', 'Chikwe Eleazer', 'text', 'author', 'Author/Founder name'),
@@ -165,6 +165,6 @@ INSERT INTO website_config (config_key, config_value, config_type, config_catego
 ('CONTACT_CANCEL', 'Cancel', 'text', 'contact', 'Contact form cancel button text'),
 
 -- Technical Settings
-('MAINTENANCE_MODE', '0', 'boolean', 'technical', 'Enable maintenance mode (0=off, 1=on)'),
-('MAX_FILE_SIZE', '50', 'number', 'technical', 'Maximum file upload size in MB'),
-('ALLOWED_FILE_TYPES', 'pdf,doc,docx,xls,xlsx,ppt,pptx,txt,rtf,jpg,jpeg,png,gif,zip,rar', 'text', 'technical', 'Comma-separated list of allowed file extensions'); 
+('TECHNICAL_MAINTENANCE_MODE', '0', 'boolean', 'technical', 'Enable maintenance mode (0=off, 1=on)'),
+('TECHNICAL_MAX_FILE_SIZE', '50', 'number', 'technical', 'Maximum file upload size in MB'),
+('TECHNICAL_ALLOWED_FILE_TYPES', 'pdf,doc,docx,xls,xlsx,ppt,pptx,txt,rtf,jpg,jpeg,png,gif,zip,rar', 'text', 'technical', 'Comma-separated list of allowed file extensions'); 

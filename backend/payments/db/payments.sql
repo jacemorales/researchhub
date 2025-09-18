@@ -11,33 +11,34 @@ DROP TABLE IF EXISTS payments;
 CREATE TABLE payments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     
-    -- Core Transaction Details (from payments.sql)
-    drive_file_id INT NOT NULL,
+    -- Core Transaction Details
+    drive_file_id VARCHAR(255) NOT NULL,           -- Google Drive file ID
     customer_name VARCHAR(255) NOT NULL,
     customer_email VARCHAR(255) NOT NULL,
-    amount DECIMAL(10, 2) NOT NULL,
-    currency VARCHAR(3) DEFAULT 'USD',
-    payment_method VARCHAR(50) DEFAULT 'manual' COMMENT 'e.g., paystack, stripe, paypal',
+    customer_phone VARCHAR(255) NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,                -- Final amount with fee
+    currency VARCHAR(3) DEFAULT 'NGN',
+    payment_method VARCHAR(50) DEFAULT 'paystack',
     
-    -- Payment Provider & Status Details (merged)
-    reference VARCHAR(100) UNIQUE COMMENT 'Reference ID from the payment provider (e.g., Paystack reference)',
-    payment_status ENUM('pending', 'completed', 'failed', 'refunded', 'abandoned') DEFAULT 'pending',
-    admin_status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending' COMMENT 'Admin review status',
+    -- MASTER REFERENCE and PAYMENT PLATFORM REFERENCE
+    reference VARCHAR(100) NOT NULL UNIQUE,
+    current_platform_reference VARCHAR(100) DEFAULT NULL,
     
-    -- Logging & Timestamps (from paymentss.sql)
-    current_status varchar(50) NOT NULL DEFAULT 'pending',
-    started_at datetime NOT NULL,
-    completed_at datetime NULL DEFAULT NULL,
-    transaction_logs TEXT COMMENT 'Logs or full callback data from the payment provider',
+    -- Status Tracking
+    payment_status ENUM('initialized', 'pending', 'completed', 'failed', 'refunded', 'abandoned') DEFAULT 'pending',
+    admin_status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+    
+    -- Human-Readable Timestamps (VARCHAR for custom formatting)
+    started_at VARCHAR(50) NOT NULL ,
+    updated_at VARCHAR(50) NULL DEFAULT NULL,
+    completed_at VARCHAR(50) NULL DEFAULT NULL,
+    
+    -- Full Audit Trail — All platform attempts, logs, analytics stored here
+    transaction_logs LONGTEXT NOT NULL COMMENT 'JSON structure containing all payment attempts, platform references, and logs',
 
     -- Indexes for performance
-    INDEX idx_file_id (file_id),
+    INDEX idx_drive_file_id (drive_file_id),
     INDEX idx_customer_email (customer_email),
     INDEX idx_payment_status (payment_status),
-    INDEX idx_provider_reference (provider_reference),
-
-    -- Foreign key to link with the files being purchased
-    FOREIGN KEY (file_id) REFERENCES academic_files(id) ON DELETE CASCADE
+    INDEX idx_reference (reference)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
