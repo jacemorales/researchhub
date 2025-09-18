@@ -1,65 +1,4 @@
-// Manual retry function - uses intelligent retry strategy
-  const handleRetryPayment = useCallback(async () => {
-    console.log("[handleRetryPayment] Manual retry triggered");
-    
-    setShowErrorState(false);
-    setErrorStateData(null);
-    setAutoRetryCount(0);
-    if (autoRetryTimer) {
-      clearTimeout(autoRetryTimer);
-      setAutoRetryTimer(null);
-    }
-
-    // Use the intelligent retry orchestrator
-    await executeRetryStrategy();
-  }, [executeRetryStrategy, autoRetryTimer]);
-
-  // WATCH POPUP CLOSE with enhanced verification logic
-  const watchPopupClose = useCallback((masterRef: string, popup: Window) => {
-    console.log("[watchPopupClose] Starting to monitor popup for masterRef:", masterRef);
-    
-    let checkCount = 0;
-    const maxChecks = 1200;
-    const popupRef = popup;
-
-    const checkInterval = setInterval(async () => {
-      checkCount++;
-      
-      if (checkCount >= maxChecks) {
-        clearInterval(checkInterval);
-        console.log("[watchPopupClose] Max checks reached, stopping monitor");
-        return;
-      }
-
-      if (!popupRef || popupRef.closed) {
-        clearInterval(checkInterval);
-        console.log("[watchPopupClose] Popup closed, checking initialization status before verification");
-        
-        // Wait a moment for state to settle
-        setTimeout(async () => {
-          // Double-check our request tracking before proceeding
-          if (initializeSuccess && currentPaystackRef) {
-            console.log("[watchPopupClose] ✅ Initialization confirmed successful, proceeding with verification");
-            const hasNetwork = await hasInternet();
-            if (hasNetwork) {
-              verifyPayment(masterRef);
-            } else {
-              setLastFailedOperation('verify');
-              showError('user', 'No internet connection', 'Cannot verify payment status');
-            }
-          } else {
-            console.log("[watchPopupClose] ⚠️ Initialization status unclear, using retry strategy");
-            setLastFailedOperation('verify');
-            executeRetryStrategy();
-          }
-        }, 1000);
-      }
-    }, 500);
-
-    return () => {
-      clearInterval(checkInterval);
-    };
-  }, [verifyPayment, initializeSuccess, currentPaystackRef, executeRetryStrategy]);// src/payments/ModalPurchase.tsx
+// src/payments/ModalPurchase.tsx
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useData } from "../hooks/useData";
 import type { AcademicFile } from "../hooks/contexts/DataContext";
@@ -109,11 +48,6 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
   const [errorStateData, setErrorStateData] = useState<ErrorData | null>(null);
   const [autoRetryCount, setAutoRetryCount] = useState(0);
   const [autoRetryTimer, setAutoRetryTimer] = useState<NodeJS.Timeout | null>(null);
-  
-  // 🔥 REQUEST TRACKING SYSTEM
-  const [initializeSuccess, setInitializeSuccess] = useState(false);
-  const [lastFailedOperation, setLastFailedOperation] = useState<'initialize' | 'verify' | null>(null);
-  
   const formRef = useRef<HTMLFormElement>(null);
   const isMounted = useRef(true);
   const modalBodyRef = useRef<HTMLDivElement>(null);
@@ -146,7 +80,6 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
       clearTimeout(autoRetryTimer);
       setAutoRetryTimer(null);
     }
-    // ✅ DON'T reset request tracking here to maintain state consistency
   };
 
   // Internet check
@@ -258,52 +191,7 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     }
   };
 
-  // 🔧 INTELLIGENT RETRY ORCHESTRATOR
-  const executeRetryStrategy = useCallback(async () => {
-    console.log("[executeRetryStrategy] Starting intelligent retry...");
-    console.log("[executeRetryStrategy] Tracking State:", {
-      initializeSuccess,
-      lastFailedOperation,
-      currentPaystackRef,
-      platformRef: localStorage.getItem('platformRef')
-    });
-
-    // First, check network connectivity
-    const hasNetwork = await hasInternet();
-    if (!hasNetwork) {
-      console.log("[executeRetryStrategy] No network detected, showing network error");
-      showError('user', 'No internet connection', 'Please check your connection and try again');
-      return;
-    }
-
-    console.log("[executeRetryStrategy] Network available, determining retry action...");
-
-    if (!initializeSuccess || lastFailedOperation === 'initialize') {
-      // Initialize failed or never succeeded, retry initialization
-      console.log("[executeRetryStrategy] Retrying initialization");
-      setLastFailedOperation(null);
-      initializePayment();
-    } else if (initializeSuccess && currentPaystackRef) {
-      // Initialize succeeded, retry verification
-      console.log("[executeRetryStrategy] Retrying verification for:", currentPaystackRef);
-      setLastFailedOperation(null);
-      setIsVerifying(true);
-      verifyPayment(currentPaystackRef);
-    } else {
-      // Inconsistent state, reset and retry from beginning
-      console.log("[executeRetryStrategy] Inconsistent state detected, starting fresh");
-      resetRequestTracking();
-      initializePayment();
-    }
-  }, [initializeSuccess, lastFailedOperation, currentPaystackRef]);
-
-  // 🔄 REQUEST TRACKING MANAGEMENT
-  const resetRequestTracking = useCallback(() => {
-    console.log("[resetRequestTracking] Clearing request tracking state");
-    setInitializeSuccess(false);
-    setLastFailedOperation(null);
-    setCurrentPaystackRef(null);
-  }, []);
+  // Helper function to check if error is retryable
   const isRetryablePaystackError = (errorMessage: string, errorDetails: string = '') => {
     const retryablePatterns = [
       'Failed to connect',
@@ -345,55 +233,47 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     setAutoRetryTimer(timer);
   };
 
-  // Reset to initial state - ONLY called from payment results "Try Again"
+  // Reset to initial state
   const resetToInitialState = useCallback(() => {
-    console.log("[resetToInitialState] Resetting to initial modal state");
     setIsProcessing(false);
     setIsVerifying(false);
     setShowResult(false);
     setResultData(null);
     setShowErrorState(false);
     setErrorStateData(null);
+    setCurrentPaystackRef(null);
     setAutoRetryCount(0);
     if (autoRetryTimer) {
       clearTimeout(autoRetryTimer);
       setAutoRetryTimer(null);
     }
-    
-    // ✅ Reset request tracking
-    resetRequestTracking();
-    
-    // ✅ Only clear platformRef as requested
+    localStorage.removeItem('masterRef');
     localStorage.removeItem('platformRef');
     
     if (formRef.current) {
       formRef.current.reset();
     }
-  }, [autoRetryTimer, resetRequestTracking]);
+  }, [autoRetryTimer]);
 
-  // VERIFY PAYMENT with enhanced error handling
+  // VERIFY PAYMENT
   const verifyPayment = useCallback(async (masterRef: string) => {
     console.log("[verifyPayment] Starting verification for masterRef:", masterRef);
     setIsVerifying(true);
-    setLastFailedOperation(null); // Clear any previous failure state
 
     const platformRef = localStorage.getItem('platformRef');
     if (!platformRef) {
-      console.error("[verifyPayment] Missing platformRef - initialize tracking issue");
-      setLastFailedOperation('verify');
-      showError('developer', 'Platform reference missing', 'Payment tracking error - will retry from initialization');
+      showError('developer', 'Platform reference missing', 'Please try again');
       return;
     }
 
-    // Double-check network before proceeding
-    const hasNetwork = await hasInternet();
-    if (!hasNetwork) {
-      setLastFailedOperation('verify');
+    const online = await hasInternet();
+    if (!online) {
       showError('user', 'No internet connection', 'Cannot verify payment status');
       return;
     }
 
     try {
+      // ✅ Send BOTH masterRef and platformRef to verify.php
       const verifyUrl = `${BASE_URI}/backend/payments/verify.php?master_reference=${encodeURIComponent(masterRef)}&platform_reference=${encodeURIComponent(platformRef)}`;
       console.log("[verifyPayment] Calling verify URL:", verifyUrl);
 
@@ -421,47 +301,15 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
       }
       
       console.log("[verifyPayment] Parsed verification result:", parsedData);
-
-      // 🔍 ENHANCED PAYSTACK ERROR HANDLING
-      if (parsedData.status === 'error' && parsedData.type === 'paystack') {
-        const errorMessage = parsedData.message || 'Unknown Paystack error';
-        const errorDetails = parsedData.details || '';
-        
-        console.log("[verifyPayment] Paystack error detected:", errorMessage);
-        
-        // Handle specific Paystack errors
-        if (errorMessage.includes('Transaction reference not found')) {
-          console.log("[verifyPayment] Transaction not found - initialization may have failed");
-          setLastFailedOperation('verify');
-          resetRequestTracking(); // Reset tracking and retry from initialization
-          const isRetryable = true;
-          showError('paystack', 'Transaction not found - will retry initialization', errorDetails, isRetryable);
-          return;
-        } else if (errorMessage.includes('reference already used') || errorMessage.includes('already processed')) {
-          console.log("[verifyPayment] Reference already used - clearing platformRef and retrying");
-          localStorage.removeItem('platformRef');
-          setLastFailedOperation('verify');
-          const isRetryable = true;
-          showError('paystack', 'Payment reference expired - generating new reference', errorDetails, isRetryable);
-          return;
-        } else {
-          // Other retryable Paystack errors
-          setLastFailedOperation('verify');
-          const isRetryable = isRetryablePaystackError(errorMessage, errorDetails);
-          showError('paystack', 'Verification failed', errorDetails, isRetryable);
-          return;
-        }
-      }
       
       const status = parsedData.payment_status || parsedData.status || 'failed';
       const amount = parsedData.data?.amount ? (parsedData.data.amount / 100) : null;
       const paidAt = parsedData.data?.paid_at ? new Date(parsedData.data.paid_at).toLocaleString() : null;
 
-      // Clear localStorage ONLY on success
+      // Clear masterRef and platformRef ONLY on success
       if (status === 'success') {
         localStorage.removeItem('masterRef');
         localStorage.removeItem('platformRef');
-        resetRequestTracking();
       }
 
       if (parsedData.file_error || parsedData.download_error) {
@@ -496,12 +344,11 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
 
     } catch (error) {
       console.error("[verifyPayment] Verification failed:", error);
-      setLastFailedOperation('verify');
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       const isRetryable = isRetryablePaystackError(errorMessage);
       showError('paystack', 'Verification failed', errorMessage, isRetryable);
     }
-  }, [showToast, BASE_URI, resetRequestTracking]);
+  }, [showToast, BASE_URI]);
 
   // WATCH POPUP CLOSE
   const watchPopupClose = useCallback((masterRef: string, popup: Window) => {
@@ -534,7 +381,7 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     };
   }, [verifyPayment]);
 
-  // Initialize payment with comprehensive tracking
+  // Initialize payment
   const initializePayment = useCallback(async () => {
     if (!data || !formRef.current) {
       console.error("[initializePayment] Missing data or form reference");
@@ -552,25 +399,21 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     const amount = parseFloat(data.price ?? "") || 0;
     const fileId = data.drive_file_id;
 
-    console.log("[initializePayment] Starting payment initialization...");
     setIsProcessing(true);
     setIsVerifying(false);
-    setInitializeSuccess(false); // ✅ Reset initialize tracking
-    setLastFailedOperation(null);
     hideErrorState();
     setShowResult(false);
+    console.log("[initializePayment] Starting payment initialization...");
 
-    // First check network
-    const hasNetwork = await hasInternet();
-    if (!hasNetwork) {
+    const online = await hasInternet();
+    if (!online) {
       setIsProcessing(false);
-      setLastFailedOperation('initialize');
       showError('user', 'No internet connection', 'Please check your connection and try again');
       return;
     }
 
     try {
-      // Get or generate masterRef
+      // ✅ Get or generate masterRef
       let masterRef = localStorage.getItem('masterRef');
       if (!masterRef) {
         masterRef = `RESEARCH_HUB_${Math.random().toString(36).substr(2, 8).toUpperCase()}`;
@@ -580,7 +423,7 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
         console.log("[initializePayment] Reusing existing masterRef:", masterRef);
       }
 
-      // Generate NEW platformRef every time
+      // ✅ Generate NEW platformRef every time
       const platformRef = `PS_${Date.now()}_${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
       localStorage.setItem('platformRef', platformRef);
       console.log("[initializePayment] Generated new platformRef:", platformRef);
@@ -591,11 +434,11 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
         current_payment_platform_reference: platformRef,
         drive_file_id: fileId,
         customer_name: customerName,
-        customer_phone: customerPhone,
+        customer_phone: customerPhone, // ✅ Added phone number to payload
         reference_stat: masterRef
       };
 
-      console.log("[initializePayment] Sending payload to initialize.php:", payload);
+      console.log("[initializePayment] Sending payload:", payload);
 
       const response = await fetch(`${BASE_URI}/backend/payments/initialize.php`, {
         method: 'POST',
@@ -607,7 +450,7 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
       });
 
       const responseText = await response.text();
-      console.log("[initializePayment] Raw response:", responseText.substring(0, 200));
+      console.log("[initializePayment] Response:", responseText.substring(0, 200));
       
       if (!response.ok) {
         throw new Error(`Server error: ${response.status}`);
@@ -619,27 +462,14 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
       } catch {
         throw new Error('Invalid server response format');
       }
-
-      // Check for Paystack-specific errors in response
-      if (result.status === 'error' && result.type === 'paystack') {
-        console.log("[initializePayment] Paystack error in response:", result.message);
-        setLastFailedOperation('initialize');
-        const isRetryable = isRetryablePaystackError(result.message, result.details || '');
-        showError('paystack', result.message || 'Payment initialization failed', result.details || '', isRetryable);
-        return;
-      }
       
       if (result.status !== 'success' || !result.data?.authorization_url) {
         throw new Error(result.message || 'Initialization failed');
       }
 
-      // ✅ SUCCESSFUL INITIALIZATION - Update tracking
-      console.log("[initializePayment] ✅ Initialization successful!");
-      setInitializeSuccess(true);
+      // ✅ Store masterRef for verification ONLY after successful initialization
+      console.log("[initializePayment] Initialization successful, opening popup");
       setCurrentPaystackRef(masterRef);
-      setLastFailedOperation(null);
-
-      console.log("[initializePayment] Opening popup with URL:", result.data.authorization_url);
 
       const url = result.data.authorization_url;
       const w = 600, h = 700;
@@ -662,7 +492,6 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     } catch (error) {
       console.error("[initializePayment] Payment initialization failed:", error);
       setIsProcessing(false);
-      setLastFailedOperation('initialize');
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       const isRetryable = isRetryablePaystackError(errorMessage);
       showError('paystack', 'Payment initialization failed', errorMessage, isRetryable);
