@@ -7,7 +7,7 @@ interface ModalProps {onClose: () => void;}
 
 const ModalContact = ({ onClose }: ModalProps) => {
   const { website_config } = useData();
-  const { execute, loading, error, success } = useCUD();
+  const { execute } = useCUD();
 
   const [formVisible, setFormVisible] = useState(true);
   const [statusVisible, setStatusVisible] = useState(false);
@@ -129,7 +129,7 @@ const ModalContact = ({ onClose }: ModalProps) => {
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  onClick={() => (window as any).closeModal?.("contactModal")}
+                  onClick={() => (window as Window & { closeModal?: (id: string) => void }).closeModal?.("contactModal")}
                 >
                   {website_config?.CONTACT_CANCEL}
                 </button>
