@@ -9,11 +9,14 @@ const ModalAuthor = ({ onClose }: ModalProps) => {
       <div className="modal-content">
         <span className="close-modal" data-modal="authorModal" onClick={onClose}>&times;</span>
 
-        <div className="author-profile-header">
+        <div className="author-profile-header modal-header">
           <img
             src={website_config?.AUTHOR_IMG}
             alt={website_config?.AUTHOR_NAME}
             className="author-profile-img"
+            onError={(e) => {
+              e.currentTarget.src = '/no_img.png';
+            }}
           />
           <div className="author-profile-info">
             <h2 className="author-profile-name">{website_config?.AUTHOR_NAME}</h2>
@@ -26,7 +29,7 @@ const ModalAuthor = ({ onClose }: ModalProps) => {
             </p>
           </div>
         </div>
-
+        <div className="modal-body">
         <div className="author-profile-bio">
           <p>{website_config?.AUTHOR_BIO}</p>
         </div>
@@ -61,6 +64,7 @@ const ModalAuthor = ({ onClose }: ModalProps) => {
               <p>{website_config?.AUTHOR_PUBLICATIONS_DESC}</p>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </div>

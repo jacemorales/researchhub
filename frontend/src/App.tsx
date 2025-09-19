@@ -8,8 +8,10 @@ const Marketplace = lazy(() => import("./user/pages/Marketplace"));
 const PaymentScriptLoader = lazy(() => import("./payments/PaymentScriptLoader"));
 
 const Admin = lazy(() => import("./admin/Admin"));
- import Settings from "./admin/pages/Settings";
-import Payments from "./admin/pages/Payments";
+const AdminLogin = lazy(() => import("./admin/pages/Login"));
+const ProtectedRoute = lazy(() => import("./admin/components/ProtectedRoute"));
+const Settings = lazy(() => import("./admin/pages/Settings"));
+const Payments = lazy(() => import("./admin/pages/Payments"));
 
 
 const Loading = () => <div>Loading...</div>;
@@ -28,13 +30,26 @@ const AppRoutes = () => {
           {/* Payment Route */}
           <Route path="/payments/*" element={<PaymentScriptLoader />} />
 
-          {/* Admin Route */}
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/admin/settings" element={<Settings />} />
-          <Route path="/admin/payments" element={<Payments/>} />
+          {/* Admin Routes */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin" element={
+            <ProtectedRoute>
+              <Admin />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/settings" element={
+            <ProtectedRoute>
+              <Settings />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/payments" element={
+            <ProtectedRoute>
+              <Payments />
+            </ProtectedRoute>
+          } />
 
-          {/* Fallback */}
-          <Route path="*" element={<div>404 Not Found</div>} />
+          {/* Fallback - Redirect to user page */}
+          <Route path="*" element={<Navigate to="/user" replace />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

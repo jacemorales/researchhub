@@ -16,6 +16,9 @@ const Header = () => {
   const [showAbout, setShowAbout] = useState(false);
   const [showBlog, setShowBlog] = useState(false);
   
+  // Mobile menu state
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
 
   // Load toast.js like PHP did
   useEffect(() => {
@@ -42,7 +45,8 @@ const Header = () => {
           </div>
         </div>
 
-        <nav>
+        {/* Desktop Navigation */}
+        <nav className="desktop-nav">
           <ul>
             <li>
               <a href="/"><i className="fas fa-home" /> Home</a>
@@ -61,7 +65,41 @@ const Header = () => {
             </li>
           </ul>
         </nav>
+
+        {/* Mobile Menu Button */}
+        <button 
+          className="mobile-menu-toggle"
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          aria-label="Toggle mobile menu"
+        >
+          <i className={`fas ${isMobileMenuOpen ? 'fa-times' : 'fa-bars'}`} />
+        </button>
       </header>
+
+      {/* Mobile Navigation */}
+      <nav className={`mobile-nav ${isMobileMenuOpen ? 'open' : ''}`}>
+        <ul>
+          <li>
+            <a href="/" onClick={() => setIsMobileMenuOpen(false)}>
+              <i className="fas fa-home" /> Home
+            </a>
+          </li>
+          <li>
+            <a href="#levelCards" onClick={() => setIsMobileMenuOpen(false)}>
+              <i className="fas fa-book" /> Resources
+            </a>
+          </li>
+          <li onClick={() => { setShowBlog(true); setIsMobileMenuOpen(false); }}>
+              <a id="blogLink" ><i className="fas fa-blog" /> Blog</a>
+          </li>
+          <li onClick={() => { setShowAbout(true); setIsMobileMenuOpen(false); }}>
+              <a id="aboutLink" ><i className="fas fa-info-circle" /> About</a>
+          </li>
+          <li onClick={() => { setShowContact(true); setIsMobileMenuOpen(false); }}>
+              <a id="contactLink" ><i className="fas fa-envelope" /> Contact</a>
+          </li>
+        </ul>
+      </nav>
 
       {showContact && <ModalContact onClose={() => setShowContact(false)} />}
       {showAbout && <ModalAbout onClose={() => setShowAbout(false)} />}

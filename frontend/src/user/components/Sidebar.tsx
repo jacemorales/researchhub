@@ -16,7 +16,7 @@ const Sidebar = () => {
             alt={website_config?.AUTHOR_NAME}
             className="author-img"
             onError={(e) => {
-              e.currentTarget.src = "/author.png";
+              e.currentTarget.src = "/no_img.png";
             }}
           />
           <h2 className="author-name">{website_config?.AUTHOR_NAME}</h2>

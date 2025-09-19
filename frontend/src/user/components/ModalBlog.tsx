@@ -20,7 +20,14 @@ const ModalBlog = ({ onClose }: ModalProps) => {
 
           <div className="blog-grid">
             <div className="blog-card">
-              <img src={website_config?.BLOG_ARTICLE_1_IMG} alt={website_config?.BLOG_ARTICLE_1_TITLE} className="blog-img" />
+              <img 
+                src={website_config?.BLOG_ARTICLE_1_IMG} 
+                alt={website_config?.BLOG_ARTICLE_1_TITLE} 
+                className="blog-img"
+                onError={(e) => {
+                  e.currentTarget.src = '/no_img.png';
+                }}
+              />
               <div className="blog-content">
                 <h4 className="blog-title">{website_config?.BLOG_ARTICLE_1_TITLE}</h4>
                 <div className="blog-meta">
@@ -33,7 +40,14 @@ const ModalBlog = ({ onClose }: ModalProps) => {
             </div>
 
             <div className="blog-card">
-              <img src={website_config?.BLOG_ARTICLE_2_IMG} alt={website_config?.BLOG_ARTICLE_2_TITLE} className="blog-img" />
+              <img 
+                src={website_config?.BLOG_ARTICLE_2_IMG} 
+                alt={website_config?.BLOG_ARTICLE_2_TITLE} 
+                className="blog-img"
+                onError={(e) => {
+                  e.currentTarget.src = '/no_img.png';
+                }}
+              />
               <div className="blog-content">
                 <h4 className="blog-title">{website_config?.BLOG_ARTICLE_2_TITLE}</h4>
                 <div className="blog-meta">
@@ -46,7 +60,14 @@ const ModalBlog = ({ onClose }: ModalProps) => {
             </div>
 
             <div className="blog-card">
-              <img src={website_config?.BLOG_ARTICLE_3_IMG} alt={website_config?.BLOG_ARTICLE_3_TITLE} className="blog-img" />
+              <img 
+                src={website_config?.BLOG_ARTICLE_3_IMG} 
+                alt={website_config?.BLOG_ARTICLE_3_TITLE} 
+                className="blog-img"
+                onError={(e) => {
+                  e.currentTarget.src = '/no_img.png';
+                }}
+              />
               <div className="blog-content">
                 <h4 className="blog-title">{website_config?.BLOG_ARTICLE_3_TITLE}</h4>
                 <div className="blog-meta">

@@ -37,6 +37,7 @@ const Payments: React.FC = () => {
     const [isCustomerModalOpen, setIsCustomerModalOpen] = useState<boolean>(false);
     const [isFileModalOpen, setIsFileModalOpen] = useState<boolean>(false);
     const [isActionMenuOpen, setIsActionMenuOpen] = useState<number | null>(null);
+    const [activeLogTab, setActiveLogTab] = useState<'filtered' | 'raw'>('filtered');
 
     // Helper: Format status for display
     const formatStatus = useCallback((status: string | null | undefined): string => {
@@ -129,6 +130,48 @@ const Payments: React.FC = () => {
     const showToast = useCallback((message: string, type: 'success' | 'error') => {
         setToast({ message, type });
         setTimeout(() => setToast(null), 3000);
+    }, []);
+
+    // Helper: Parse and filter transaction logs
+    const parseTransactionLogs = useCallback((logs: string) => {
+        try {
+            const parsed = JSON.parse(logs);
+            return parsed;
+        } catch {
+            return logs;
+        }
+    }, []);
+
+    // Helper: Filter transaction logs for meaningful data
+    const getFilteredLogs = useCallback((logs: any) => {
+        if (typeof logs === 'string') {
+            return logs;
+        }
+        
+        if (Array.isArray(logs)) {
+            return logs.map(log => ({
+                timestamp: log.timestamp || log.time || 'N/A',
+                status: log.status || log.state || 'N/A',
+                message: log.message || log.description || 'N/A',
+                amount: log.amount || 'N/A',
+                currency: log.currency || 'N/A',
+                transaction_id: log.transaction_id || log.id || 'N/A'
+            }));
+        }
+        
+        if (typeof logs === 'object') {
+            return {
+                timestamp: logs.timestamp || logs.time || 'N/A',
+                status: logs.status || logs.state || 'N/A',
+                message: logs.message || logs.description || 'N/A',
+                amount: logs.amount || 'N/A',
+                currency: logs.currency || 'N/A',
+                transaction_id: logs.transaction_id || logs.id || 'N/A',
+                gateway_response: logs.gateway_response || logs.response || 'N/A'
+            };
+        }
+        
+        return logs;
     }, []);
 
     // Filter and search payments
@@ -250,6 +293,7 @@ const Payments: React.FC = () => {
     // Open transaction logs modal
     const openTransactionLogs = useCallback((payment: Payment) => {
         setSelectedPayment(payment);
+        setActiveLogTab('filtered');
         setIsLogsModalOpen(true);
     }, []);
 
@@ -531,15 +575,111 @@ const Payments: React.FC = () => {
                             <h2 className="modal-title">Transaction Logs</h2>
                         </div>
                         <div className="modal-body">
-                            <pre className="logs-content">
-                                {(() => {
-                                    try {
-                                        return JSON.stringify(JSON.parse(selectedPayment.transaction_logs), null, 2);
-                                    } catch {
-                                        return selectedPayment.transaction_logs;
-                                    }
-                                })()}
-                            </pre>
+                            {/* Tab Navigation */}
+                            <div className="logs-tabs">
+                                <button 
+                                    className={`tab-button ${activeLogTab === 'filtered' ? 'active' : ''}`}
+                                    onClick={() => setActiveLogTab('filtered')}
+                                >
+                                    <i className="fas fa-filter"></i> Filtered Data
+                                </button>
+                                <button 
+                                    className={`tab-button ${activeLogTab === 'raw' ? 'active' : ''}`}
+                                    onClick={() => setActiveLogTab('raw')}
+                                >
+                                    <i className="fas fa-code"></i> Raw Data
+                                </button>
+                            </div>
+
+                            {/* Tab Content */}
+                            <div className="logs-content">
+                                {activeLogTab === 'filtered' ? (
+                                    <div className="filtered-logs">
+                                        {(() => {
+                                            const parsedLogs = parseTransactionLogs(selectedPayment.transaction_logs);
+                                            const filteredLogs = getFilteredLogs(parsedLogs);
+                                            
+                                            if (Array.isArray(filteredLogs)) {
+                                                return (
+                                                    <div className="logs-table">
+                                                        <table>
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>Timestamp</th>
+                                                                    <th>Status</th>
+                                                                    <th>Message</th>
+                                                                    <th>Amount</th>
+                                                                    <th>Transaction ID</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {filteredLogs.map((log: any, index: number) => (
+                                                                    <tr key={index}>
+                                                                        <td>{log.timestamp}</td>
+                                                                        <td>
+                                                                            <span className={`status status-${log.status?.toLowerCase()}`}>
+                                                                                {log.status}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td>{log.message}</td>
+                                                                        <td>{log.currency} {log.amount}</td>
+                                                                        <td className="transaction-id">{log.transaction_id}</td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                );
+                                            } else if (typeof filteredLogs === 'object') {
+                                                return (
+                                                    <div className="logs-details">
+                                                        <div className="detail-row">
+                                                            <strong>Timestamp:</strong>
+                                                            <span>{filteredLogs.timestamp}</span>
+                                                        </div>
+                                                        <div className="detail-row">
+                                                            <strong>Status:</strong>
+                                                            <span className={`status status-${filteredLogs.status?.toLowerCase()}`}>
+                                                                {filteredLogs.status}
+                                                            </span>
+                                                        </div>
+                                                        <div className="detail-row">
+                                                            <strong>Message:</strong>
+                                                            <span>{filteredLogs.message}</span>
+                                                        </div>
+                                                        <div className="detail-row">
+                                                            <strong>Amount:</strong>
+                                                            <span>{filteredLogs.currency} {filteredLogs.amount}</span>
+                                                        </div>
+                                                        <div className="detail-row">
+                                                            <strong>Transaction ID:</strong>
+                                                            <span className="transaction-id">{filteredLogs.transaction_id}</span>
+                                                        </div>
+                                                        {filteredLogs.gateway_response && (
+                                                            <div className="detail-row">
+                                                                <strong>Gateway Response:</strong>
+                                                                <span>{filteredLogs.gateway_response}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            } else {
+                                                return <pre>{filteredLogs}</pre>;
+                                            }
+                                        })()}
+                                    </div>
+                                ) : (
+                                    <pre className="raw-logs">
+                                        {(() => {
+                                            try {
+                                                return JSON.stringify(JSON.parse(selectedPayment.transaction_logs), null, 2);
+                                            } catch {
+                                                return selectedPayment.transaction_logs;
+                                            }
+                                        })()}
+                                    </pre>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

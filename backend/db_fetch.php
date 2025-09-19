@@ -23,11 +23,9 @@ if (in_array($origin, $allowedOrigins)) {
 
 // Set headers for JSON response and CORS
 header("Content-Type: application/json");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header("Access-Control-Allow-Methods: GET, OPTIONS");
+header("Access-Control-Allow-Headers: Expires, Cache-Control, Pragma, Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 header("Access-Control-Allow-Credentials: true");
-header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
 // header("Access-Control-Allow-Origin: https://researchhubb.netlify.app");
 
 // Handle preflight requests
@@ -90,12 +88,34 @@ try {
     // Initialize the fetcher
     $fetcher = new DatabaseFetcher($pdo);
 
-    // Fetch all data
-    $data = [
-        'website_config' => $fetcher->getWebsiteConfig(),
-        'academic_files' => $fetcher->getAcademicFiles(),
-        'payments' => $fetcher->getPayments()
-    ];
+    // Check query parameters
+    $skip_location = isset($_GET['skip_location']) && $_GET['skip_location'] === 'true';
+    $location_only = isset($_GET['location_only']) && $_GET['location_only'] === 'true';
+    $ping_only = isset($_GET['ping']) && $_GET['ping'] === 'true';
+
+    if ($ping_only) {
+        // Simple ping response for internet connectivity check
+        echo json_encode(['success' => true, 'ping' => 'ok', 'timestamp' => date('Y-m-d H:i:s')]);
+        exit;
+    }
+
+    if ($location_only) {
+        // Only return location data
+        $data = [
+            'user_location' => getUserLocation()
+        ];
+    } else {
+        // Fetch all data (with or without location based on skip_location)
+        $data = [
+            'website_config' => $fetcher->getWebsiteConfig(),
+            'academic_files' => $fetcher->getAcademicFiles(),
+            'payments' => $fetcher->getPayments(),
+        ];
+        
+        if (!$skip_location) {
+            $data['user_location'] = getUserLocation();
+        }
+    }
 
     echo json_encode(['success' => true, 'data' => $data]);
 

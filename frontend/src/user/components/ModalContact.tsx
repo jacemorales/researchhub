@@ -1,89 +1,32 @@
 // src/components/ModalContact.tsx
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useData } from "../../hooks/useData";
+import { useCUD } from "../../hooks/useCUD";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const LOCATION_API = import.meta.env.VITE_LOCATION_API_KEY;
 interface ModalProps {onClose: () => void;}
 
 const ModalContact = ({ onClose }: ModalProps) => {
   const { website_config } = useData();
+  const { execute, loading, error, success } = useCUD();
 
-  // refs & state to mirror the PHP DOM manipulations
-  const locationRef = useRef<HTMLSpanElement | null>(null);
   const [formVisible, setFormVisible] = useState(true);
   const [statusVisible, setStatusVisible] = useState(false);
   const [statusTitle, setStatusTitle] = useState("Sending Message...");
   const [statusMessage, setStatusMessage] = useState("Please wait while we send your message.");
   const [statusIcon, setStatusIcon] = useState<"spinner" | "check" | "times">("spinner");
 
-  // Geolocation fetch (IP-based) with timeout and retry UI like PHP
-  const getUserLocation = useCallback(() => {
-    const el = locationRef.current;
-    if (!el) return;
-
-    // remove previous error/retry
-    const parent = el.parentElement!;
-    parent.querySelector(".location-error")?.remove();
-    parent.querySelector(".location-retry")?.remove();
-
-    el.textContent = "Getting location...";
-
-    const timer = setTimeout(() => {
-      el.textContent = "Couldn't get location";
-      const errorDiv = document.createElement("div");
-      errorDiv.className = "location-error";
-      errorDiv.textContent = "Location request timed out. Please try again.";
-      parent.appendChild(errorDiv);
-
-      const retryBtn = document.createElement("button");
-      retryBtn.className = "location-retry";
-      retryBtn.textContent = "Retry Location";
-      retryBtn.onclick = getUserLocation;
-      parent.appendChild(retryBtn);
-    }, 30000);
-
-
-    fetch(`https://api.ipgeolocation.io/ipgeo?apiKey=${LOCATION_API}`)
-      .then((r) => {
-        clearTimeout(timer);
-        if (!r.ok) throw new Error("Network response was not ok");
-        return r.json();
-      })
-      .then((data) => {
-        clearTimeout(timer);
-        const country = data?.location?.country_name || "";
-        const state = data?.location?.city || "";
-        el.textContent = [state, country].filter(Boolean).join(", ");
-      })
-      .catch((err) => {
-        clearTimeout(timer);
-        console.error("Error fetching location:", err);
-        el.textContent = "Couldn't get location";
-
-        const errorDiv = document.createElement("div");
-        errorDiv.className = "location-error";
-        errorDiv.textContent = "Failed to fetch location. Please try again.";
-        parent.appendChild(errorDiv);
-
-        const retryBtn = document.createElement("button");
-        retryBtn.className = "location-retry";
-        retryBtn.textContent = "Retry Location";
-        retryBtn.onclick = getUserLocation;
-        parent.appendChild(retryBtn);
-      });
-  }, [LOCATION_API]);
-
-  useEffect(() => {
-    getUserLocation();
-  }, [getUserLocation]);
-
-  const onSubmit: React.FormEventHandler<HTMLFormElement> = (e) => {
+  const onSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
 
     const form = e.currentTarget;
-    const fd = new FormData(form);
-    fd.append("action", "process_contact");
+    const formData = new FormData(form);
+    
+    const contactData = {
+      contact_name: formData.get("contact_name") as string,
+      contact_email: formData.get("contact_email") as string,
+      contact_subject: formData.get("contact_subject") as string,
+      contact_message: formData.get("contact_message") as string,
+    };
 
     setFormVisible(false);
     setStatusVisible(true);
@@ -91,36 +34,34 @@ const ModalContact = ({ onClose }: ModalProps) => {
     setStatusMessage("Please wait while we send your message.");
     setStatusIcon("spinner");
 
-    fetch(`${API_BASE_URL}/backend/processes.php`, {
-      method: "POST",
-      body: fd,
-      credentials: "include",
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.success) {
-          setStatusTitle("Message Sent!");
-          setStatusMessage(data?.message);
-          setStatusIcon("check");
-          setTimeout(() => {
-            (window as any).closeModal?.("contactModal");
-            form.reset();
-            setFormVisible(true);
-            setStatusVisible(false);
-          }, 5000);
-        } else {
-          throw new Error(data?.error || "Failed to send message");
-        }
-      })
-      .catch((err) => {
-        setStatusTitle("Message Failed");
-        setStatusMessage(String(err?.message || err));
-        setStatusIcon("times");
+    try {
+      const result = await execute(
+        { table: 'contact_messages', action: 'insert' },
+        contactData
+      );
+
+      if (result.success) {
+        setStatusTitle("Message Sent!");
+        setStatusMessage("Thank you for your message! We will get back to you soon.");
+        setStatusIcon("check");
         setTimeout(() => {
+          onClose();
+          form.reset();
           setFormVisible(true);
           setStatusVisible(false);
-        }, 3000);
-      });
+        }, 5000);
+      } else {
+        throw new Error(result.error || "Failed to send message");
+      }
+    } catch (err) {
+      setStatusTitle("Message Failed");
+      setStatusMessage(String(err instanceof Error ? err.message : err));
+      setStatusIcon("times");
+      setTimeout(() => {
+        setFormVisible(true);
+        setStatusVisible(false);
+      }, 3000);
+    }
   };
 
   return (
@@ -153,12 +94,6 @@ const ModalContact = ({ onClose }: ModalProps) => {
               <i className="fas fa-map-marker-alt" />
               <div>
                 <strong>Address:</strong> <span>{website_config?.CONTACT_ADDRESS}</span>
-              </div>
-            </div>
-            <div className="contact-item">
-              <i className="fas fa-location-dot" />
-              <div>
-                <strong>Your Location:</strong> <span id="userLocation" ref={locationRef} />
               </div>
             </div>
           </div>

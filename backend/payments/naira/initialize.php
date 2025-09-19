@@ -107,7 +107,7 @@ try {
     if (!$paymentRow) {
         // First attempt — create master record WITH platform reference
         error_log("FIRST ATTEMPT: Creating new master payment record for: $masterRef");
-        $paymentRow = createPaymentRow($driveFileId, $customerName, $customerPhone, $email, $finalAmountNaira, $masterRef, $platformRef);
+        $paymentRow = createPaymentRow($driveFileId, $customerName, $email, $customerPhone, $finalAmountNaira, $masterRef, $platformRef);
         
         if (!$paymentRow) {
             error_log("DATABASE ERROR: Failed to create master payment record");

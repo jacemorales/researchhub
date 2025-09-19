@@ -72,6 +72,7 @@ export default function Admin() {
   const [showDriveContent, setShowDriveContent] = useState(false);
   const [isGapiReady, setIsGapiReady] = useState(false);
   const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' } | null>(null);
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
   const inactivityTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -193,6 +194,12 @@ export default function Admin() {
       console.error("Error listing files:", err);
     }
   };
+
+  // 👇 FILTER FILES BASED ON SEARCH TERM
+  const filteredFiles = files.filter(file => 
+    file.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    file.mimeType.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleLogin = () => {
     if (tokenClient) {
@@ -316,12 +323,62 @@ export default function Admin() {
           description,
           category,
           level,
-          price
+          price,
+          r2_upload_status: 'pending'
         }
       );
 
       if (result.success) {
-        showToast("File details saved successfully!", 'success');
+        showToast("File details saved successfully! Starting R2 upload...", 'success');
+        
+        // ✅ Start R2 upload process
+        try {
+          const uploadResponse = await fetch('/backend/admin/r2_uploader.php', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              action: 'upload_from_drive',
+              drive_file_id: drive_file_id,
+              file_name: file_name,
+              //file_id: result.data?.id || result.id
+            })
+          });
+
+          const uploadResult = await uploadResponse.json();
+          
+          if (uploadResult.success) {
+            // ✅ Update file with R2 details
+            await execute(
+              { table: 'academic_files', action: 'update' },
+              {
+                //id: result.data?.id || result.id,
+                r2_key: uploadResult.r2_key,
+                r2_url: uploadResult.public_url,
+                r2_upload_status: 'success'
+              }
+            );
+            
+            showToast("File uploaded to R2 successfully!", 'success');
+          } else {
+            // ✅ Update file with failed status
+            await execute(
+              { table: 'academic_files', action: 'update' },
+              {
+                //id: result.data?.id || result.id,
+                r2_upload_status: 'failed',
+                r2_upload_error: uploadResult.error
+              }
+            );
+            
+            showToast(`R2 upload failed: ${uploadResult.error}`, 'error');
+          }
+        } catch (uploadErr) {
+          console.error("R2 upload error:", uploadErr);
+          showToast("R2 upload failed. File details saved but upload failed.", 'error');
+        }
+        
         form.reset();
         setSelectedFile(null);
       } else {
@@ -414,6 +471,9 @@ export default function Admin() {
                     src={userProfile.picture}
                     alt={userProfile.name}
                     className="user-avatar"
+                    onError={(e) => {
+                      e.currentTarget.src = '/no_img.png';
+                    }}
                   />
                 )}
                 <h3>Welcome, {userProfile.name}</h3>
@@ -442,7 +502,12 @@ export default function Admin() {
                 <div className="header-actions">
                   <div className="search-box">
                     <i className="fas fa-search"></i>
-                    <input type="text" placeholder="Search files..." />
+                    <input 
+                      type="text" 
+                      placeholder="Search files..." 
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                   </div>
                   <button
                     className="btn-icon"
@@ -467,43 +532,51 @@ export default function Admin() {
               </div>
 
               <div className="drive-file-list">
-                {files.map((file) => (
-                  <div key={file.id} className="drive-file">
-                    <div className="file-icon">
-                      <i className="fas fa-file"></i>
-                    </div>
-                    <div className="file-details">
-                      <h3>{file.name}</h3>
-                      <div className="file-meta">
-                        <span>
-                          <i className="fas fa-calendar"></i>{" "}
-                          {file.modifiedTime
-                            ? new Date(file.modifiedTime).toLocaleDateString()
-                            : "N/A"}
-                        </span>
-                        <span>
-                          <i className="fas fa-weight-hanging"></i>{" "}
-                          {file.size
-                            ? `${(Number(file.size) / (1024 * 1024)).toFixed(2)} MB`
-                            : "Unknown"}
-                        </span>
-                        <span>
-                          <i className="fas fa-file"></i> {formatFileType(file)}
-                        </span>
+                {filteredFiles.length === 0 ? (
+                  <div className="no-files-found">
+                    <i className="fas fa-search"></i>
+                    <h3>No files found</h3>
+                    <p>{searchTerm ? `No files match "${searchTerm}"` : "No files available"}</p>
+                  </div>
+                ) : (
+                  filteredFiles.map((file) => (
+                    <div key={file.id} className="drive-file">
+                      <div className="file-icon">
+                        <i className="fas fa-file"></i>
+                      </div>
+                      <div className="file-details">
+                        <h3>{file.name}</h3>
+                        <div className="file-meta">
+                          <span>
+                            <i className="fas fa-calendar"></i>{" "}
+                            {file.modifiedTime
+                              ? new Date(file.modifiedTime).toLocaleDateString()
+                              : "N/A"}
+                          </span>
+                          <span>
+                            <i className="fas fa-weight-hanging"></i>{" "}
+                            {file.size
+                              ? `${(Number(file.size) / (1024 * 1024)).toFixed(2)} MB`
+                              : "Unknown"}
+                          </span>
+                          <span>
+                            <i className="fas fa-file"></i> {formatFileType(file)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="file-actions">
+                        <button className="btn-select-file" onClick={() => handleSelectFile(file)}>
+                          <i className="fas fa-check"></i> Select
+                        </button>
+                        {file.webViewLink && (
+                          <a href={file.webViewLink} target="_blank" className="btn-view">
+                            <i className="fas fa-external-link-alt"></i>
+                          </a>
+                        )}
                       </div>
                     </div>
-                    <div className="file-actions">
-                      <button className="btn-select-file" onClick={() => handleSelectFile(file)}>
-                        <i className="fas fa-check"></i> Select
-                      </button>
-                      {file.webViewLink && (
-                        <a href={file.webViewLink} target="_blank" className="btn-view">
-                          <i className="fas fa-external-link-alt"></i>
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
 

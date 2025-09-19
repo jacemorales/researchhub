@@ -46,10 +46,28 @@ export interface DataContextType {
   website_config: WebsiteConfig | null;
   academic_files: AcademicFile[] | null;
   payments: Payment[] | null;
+  user_location: {
+    country: string;
+    state: string;
+    city?: string;
+    ip?: string | null;
+    currency: string;
+    currency_symbol: string;
+    api_status?: string;
+    raw_response?: any;
+    ip_type?: string;
+  } | null;
+  currency_code: 'USD' | 'NGN';
+  currency_symbol: string; // derived from currency_code
+  setCurrencyCode: (code: 'USD' | 'NGN') => void;
 }
 
 export const DataContext = createContext<DataContextType>({
   website_config: null,
   academic_files: null,
   payments: null,
+  user_location: null,
+  currency_code: 'USD',
+  currency_symbol: '$',
+  setCurrencyCode: () => {},
 });

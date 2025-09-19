@@ -9,14 +9,16 @@ import ModalPurchase from "../../payments/ModalPurchase";
 import Header from "../components/Header";
 import type {AcademicFile} from "../../hooks/contexts/DataContext";
 
+
 const Marketplace = () => {
-  const { academic_files } = useData();
+  const { academic_files, currency_code, currency_symbol, user_location } = useData();
   const [resources, setResources] = useState<AcademicFile[]>([]);
   const [level, setLevel] = useState("undergraduate");
   const [previewData, setPreviewData] = useState<AcademicFile | null>(null);
   const [purchaseData, setPurchaseData] = useState<AcademicFile | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  // currency and symbol now come from context
 
   // ✅ Toast State
   const [toast, setToast] = useState<{
@@ -37,11 +39,28 @@ const Marketplace = () => {
     setToast(null);
   };
 
+  // Location and currency are centrally managed; no per-page fetch
+
+  // Get price for current currency
+  const getPriceForCurrency = (file: AcademicFile) => {
+    if (!file.price) return Number(0).toFixed(2);
+    try {
+      const priceObj = typeof file.price === 'string' ? JSON.parse(file.price) : file.price;
+      const price = currency_code === 'NGN' ? (priceObj.ngn || priceObj.usd || 0) : (priceObj.usd || 0);
+      return Number(price).toFixed(2);
+    } catch (error) {
+      console.error('Error parsing price:', error);
+      return Number(0).toFixed(2);
+    }
+  };
+
+  // Get currency symbol
+  const getCurrencySymbol = () => currency_symbol || '$';
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const levelParam = params.get("level") || "undergraduate";
     setLevel(levelParam);
-
     if (academic_files) {
       const filteredResources = academic_files
         .filter((file) => file.level === levelParam)
@@ -147,7 +166,7 @@ const Marketplace = () => {
                 <div className="resource-footer">
                   <div className="price">
                     <span className="price-amount">
-                      ${Number(file.price).toFixed(2)}
+                      {getCurrencySymbol()}{getPriceForCurrency(file)}
                     </span>
                   </div>
                   <div className="actions">
@@ -167,6 +186,36 @@ const Marketplace = () => {
                 </div>
               </div>
             ))
+          )}
+        </div>
+
+        {/* Location debug info */}
+        <div className="location-debug" style={{ marginTop: '16px', fontSize: '14px' }}>
+          <strong>Location Debug:</strong>
+          <div>Country: {user_location?.country || 'Unknown'}</div>
+          <div>City: {user_location?.city || 'Unknown'}</div>
+          <div>IP: {user_location?.ip || 'Unknown'}</div>
+          <div>IP Type: {user_location?.ip_type || 'unknown'} 
+            {user_location?.ip_type === 'local' && <span style={{ color: '#ff6b6b' }}> (Local/Private)</span>}
+            {user_location?.ip_type === 'public' && <span style={{ color: '#51cf66' }}> (Public)</span>}
+          </div>
+          <div>Active Currency: {currency_code} ({currency_symbol})</div>
+          <div>API Status: 
+            <span style={{ 
+              color: user_location?.api_status === 'success' ? '#51cf66' : 
+                     user_location?.api_status === 'local_ip' ? '#ffd43b' :
+                     user_location?.api_status === 'error' ? '#ff6b6b' : '#868e96'
+            }}>
+              {user_location?.api_status || 'pending'}
+            </span>
+          </div>
+          {user_location?.raw_response && (
+            <div>
+              <strong>API Response Details:</strong>
+              <pre style={{ fontSize: '12px', background: '#f5f5f5', padding: '8px', marginTop: '4px', overflow: 'auto', maxHeight: '200px' }}>
+                {JSON.stringify(user_location.raw_response, null, 2)}
+              </pre>
+            </div>
           )}
         </div>
 

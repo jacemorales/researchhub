@@ -1,19 +1,36 @@
 <?php
-require_once 'config.php';
+require_once __DIR__ . '/../config.php';
 
 // Prevent any output before JSON response
 ob_start();
 
 header('Content-Type: application/json');
 
-// Get the action from POST data
-$action = $_POST['action'] ?? $_GET['action'] ?? '';
+// Get the action from POST data (support both JSON and form data)
+$action = '';
+$input = null;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+    
+    if (strpos($contentType, 'application/json') !== false) {
+        // Handle JSON input
+        $input = json_decode(file_get_contents('php://input'), true);
+        $action = $input['action'] ?? '';
+    } else {
+        // Handle form data
+        $action = $_POST['action'] ?? '';
+    }
+} else {
+    $action = $_GET['action'] ?? '';
+}
 
 try {
     switch ($action) {
         case 'process_contact':
             processContact();
             break;
+        // get_user_location is now handled via db_fetch.php; keep for backward-compat if needed
         default:
             throw new Exception('Invalid action specified');
     }
@@ -95,4 +112,6 @@ function processContact() {
         throw new Exception('Failed to send message. Please try again later.');
     }
 }
+
+// Removed getUserLocation handler; location is provided by db_fetch.php using config helper
 ?>

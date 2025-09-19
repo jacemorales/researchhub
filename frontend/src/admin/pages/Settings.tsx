@@ -344,7 +344,9 @@ useEffect(() => {
                             <img
                                 src={currentEditConfig.config_value}
                                 alt="Preview"
-                                onError={(e) => (e.currentTarget.style.display = 'none')}
+                                onError={(e) => {
+                                  e.currentTarget.src = '/no_img.png';
+                                }}
                             />
                         </div>
                     </div>
@@ -434,7 +436,9 @@ useEffect(() => {
                                 <img
                                     src={config.config_value}
                                     alt="Preview"
-                                    onError={(e) => (e.currentTarget.style.display = 'none')}
+                                    onError={(e) => {
+                                      e.currentTarget.src = '/no_img.png';
+                                    }}
                                 />
                             </div>
                         </div>

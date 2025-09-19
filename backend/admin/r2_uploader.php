@@ -1,6 +1,48 @@
 <?php
 require_once __DIR__ . '/../vendor/autoload.php';
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/../config.php';
+
+// Handle API requests
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json');
+    
+    try {
+        $input = json_decode(file_get_contents('php://input'), true);
+        
+        if (!$input || !isset($input['action'])) {
+            throw new Exception('Invalid request data');
+        }
+        
+        $uploader = new CloudflareR2Uploader();
+        
+        switch ($input['action']) {
+            case 'upload_from_drive':
+                if (!isset($input['drive_file_id']) || !isset($input['file_name']) || !isset($input['file_id'])) {
+                    throw new Exception('Missing required parameters');
+                }
+                
+                $result = $uploader->uploadFromGoogleDrive(
+                    $input['drive_file_id'],
+                    $input['file_name'],
+                    $input['file_id']
+                );
+                
+                echo json_encode($result);
+                break;
+                
+            default:
+                throw new Exception('Unknown action');
+        }
+        
+    } catch (Exception $e) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage()
+        ]);
+    }
+    exit;
+}
 
 class CloudflareR2Uploader {
     private $endpoint;
@@ -11,14 +53,14 @@ class CloudflareR2Uploader {
     private $client;
 
     public function __construct() {
-        // Load R2 credentials from environment
-        $this->endpoint = $_ENV['R2_ENDPOINT'] ?? '';
-        $this->accessKey = $_ENV['R2_ACCESS_KEY'] ?? '';
-        $this->secretKey = $_ENV['R2_SECRET_KEY'] ?? '';
-        $this->bucket = $_ENV['R2_BUCKET'] ?? '';
-        $this->publicUrl = $_ENV['R2_PUBLIC_URL'] ?? '';
+        // Load R2 credentials from config constants
+        $this->endpoint = 'https://' . R2_ACCOUNT_ID . '.r2.cloudflarestorage.com';
+        $this->accessKey = R2_ACCESS_KEY_ID;
+        $this->secretKey = R2_SECRET_ACCESS_KEY;
+        $this->bucket = R2_BUCKET_NAME;
+        $this->publicUrl = R2_PUBLIC_URL;
 
-        if (empty($this->endpoint) || empty($this->accessKey) || empty($this->secretKey) || empty($this->bucket)) {
+        if (empty($this->accessKey) || empty($this->secretKey) || empty($this->bucket)) {
             throw new Exception('R2 credentials not properly configured in .env');
         }
 
@@ -172,4 +214,14 @@ class CloudflareR2Uploader {
             return false;
         }
     }
+}
+
+/**
+ * Get Google Drive client for file operations
+ * This function should be implemented based on your Google Drive authentication setup
+ */
+function getGoogleClient() {
+    // This is a placeholder - you'll need to implement this based on your Google Drive auth setup
+    // For now, we'll throw an exception indicating this needs to be implemented
+    throw new Exception('Google Drive client authentication not implemented. Please configure Google Drive API access.');
 }

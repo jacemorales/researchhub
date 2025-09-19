@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useData } from "../hooks/useData";
+import { useCryptoPricing } from "../hooks/useCryptoPricing";
 import type { AcademicFile } from "../hooks/contexts/DataContext";
 
 // Extend window interface
@@ -36,7 +37,8 @@ const PAYSTACK_PERCENTAGE_FEE = 0.015;
 
 const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
   const BASE_URI = import.meta.env.VITE_API_BASE_URL;
-  const { website_config } = useData();
+  const { website_config, currency_code, setCurrencyCode } = useData();
+  const { loading: cryptoLoading, convertUSDToCrypto } = useCryptoPricing();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [currentPaystackRef, setCurrentPaystackRef] = useState<string | null>(null);
@@ -48,13 +50,29 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
   const [autoRetryCount, setAutoRetryCount] = useState(0);
   const [autoRetryTimer, setAutoRetryTimer] = useState<NodeJS.Timeout | null>(null);
   
-  // 🔥 REQUEST TRACKING SYSTEM
-  const [initializeSuccess, setInitializeSuccess] = useState(false);
-  const [lastFailedOperation, setLastFailedOperation] = useState<'initialize' | 'verify' | null>(null);
+  // New state for payment type and location
+  const [paymentType, setPaymentType] = useState<'dollar' | 'naira' | 'crypto'>('dollar');
+  const [availablePaymentMethods, setAvailablePaymentMethods] = useState<string[]>(['stripe', 'paypal']);
+  const [originalCurrencyCode, setOriginalCurrencyCode] = useState<'USD' | 'NGN'>('USD');
+  
   
   const formRef = useRef<HTMLFormElement>(null);
   const isMounted = useRef(true);
   const modalBodyRef = useRef<HTMLDivElement>(null);
+
+  // Use centrally provided user location and currency
+  useEffect(() => {
+    // Store the original currency code when modal opens
+    setOriginalCurrencyCode(currency_code);
+    
+    if (currency_code === 'NGN') {
+      setPaymentType('naira');
+      setAvailablePaymentMethods(['paystack']);
+    } else {
+      setPaymentType('dollar');
+      setAvailablePaymentMethods(['stripe', 'paypal']);
+    }
+  }, [currency_code]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -70,11 +88,89 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
       if (autoRetryTimer) {
         clearTimeout(autoRetryTimer);
       }
+      // Restore original currency when modal closes
+      setCurrencyCode(originalCurrencyCode);
     };
-  }, [popupWindow, autoRetryTimer]);
+  }, [popupWindow, autoRetryTimer, originalCurrencyCode, setCurrencyCode]);
 
   // Basic utilities
   const fmt = (n: number) => Number(n).toFixed(2);
+
+  // Handle payment type change
+  const handlePaymentTypeChange = (type: 'dollar' | 'naira' | 'crypto') => {
+    setPaymentType(type);
+    
+    // Update available payment methods based on type
+    switch (type) {
+      case 'dollar':
+        setAvailablePaymentMethods(['stripe', 'paypal']);
+        break;
+      case 'naira':
+        setAvailablePaymentMethods(['paystack']);
+        break;
+      case 'crypto':
+        setAvailablePaymentMethods(['nowpayments']);
+        break;
+      default:
+        setAvailablePaymentMethods(['stripe', 'paypal']);
+    }
+  };
+
+  // Get price based on payment type and file data
+  const getPriceForPaymentType = () => {
+    if (!data?.price) return 0;
+    
+    const priceObj = typeof data.price === 'string' ? JSON.parse(data.price) : data.price;
+    
+    switch (paymentType) {
+      case 'naira':
+        return priceObj.ngn || 0;
+      case 'dollar':
+      case 'crypto':
+        return priceObj.usd || 0;
+      default:
+        return priceObj.usd || 0;
+    }
+  };
+
+  // Get currency symbol for display
+  const getCurrencySymbol = () => {
+    if (paymentType === 'crypto') return '$';
+    if (paymentType === 'naira') return '₦';
+    return '$';
+  };
+
+  // Get effective currency code for payment processing
+  const getEffectiveCurrencyCode = () => {
+    if (paymentType === 'naira') return 'NGN';
+    if (paymentType === 'crypto') return 'USD'; // Crypto amounts are in USD
+    return 'USD';
+  };
+
+  // Format crypto amount for display
+  const formatCryptoAmount = (usdAmount: number, cryptoType: 'bitcoin' | 'solana' | 'tron'): string => {
+    const cryptoAmount = convertUSDToCrypto(usdAmount, cryptoType);
+    
+    if (cryptoType === 'bitcoin') {
+      return cryptoAmount.toFixed(8); // Bitcoin: 8 decimal places
+    } else if (cryptoType === 'solana') {
+      return cryptoAmount.toFixed(4); // Solana: 4 decimal places
+    } else if (cryptoType === 'tron') {
+      return cryptoAmount.toFixed(2); // Tron: 2 decimal places
+    }
+    
+    return cryptoAmount.toFixed(6); // Default: 6 decimal places
+  };
+
+  // Get crypto symbol
+  const getCryptoSymbol = (cryptoType: 'bitcoin' | 'solana' | 'tron'): string => {
+    switch (cryptoType) {
+      case 'bitcoin': return 'BTC';
+      case 'solana': return 'SOL';
+      case 'tron': return 'TRX';
+      default: return '';
+    }
+  };
 
   const hideErrorState = () => {
     setShowErrorState(false);
@@ -87,19 +183,13 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     // ✅ DON'T reset request tracking here to maintain state consistency
   };
 
-  // Internet check
+  // Internet check - using our own backend endpoint to avoid CORS issues
   const hasInternet = async () => {
     try {
-      const endpoints = [
-        'https://httpbin.org/ip',
-        'https://jsonplaceholder.typicode.com/posts/1',
-        'https://api.github.com'
-      ];
-      
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
       
-      const response = await fetch(endpoints[0], {
+      const response = await fetch(`${BASE_URI}/backend/db_fetch.php?ping=true`, {
         method: 'GET',
         cache: 'no-cache',
         signal: controller.signal,
@@ -131,7 +221,8 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     const email = (formData.get("customer_email") as string)?.trim();
     const customerName = (formData.get("customer_name") as string)?.trim();
     const customerPhone = (formData.get("customer_phone") as string)?.trim();
-    const amount = parseFloat(data.price ?? "") || 0;
+    // Get price based on current payment type
+    const amount = getPriceForPaymentType();
 
     if (!customerName) {
       showToast("Please enter your full name.", "error");
@@ -196,52 +287,7 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     }
   };
 
-  // 🔧 INTELLIGENT RETRY ORCHESTRATOR
-  const executeRetryStrategy = useCallback(async () => {
-    console.log("[executeRetryStrategy] Starting intelligent retry...");
-    console.log("[executeRetryStrategy] Tracking State:", {
-      initializeSuccess,
-      lastFailedOperation,
-      currentPaystackRef,
-      platformRef: localStorage.getItem('platformRef')
-    });
 
-    // First, check network connectivity
-    const hasNetwork = await hasInternet();
-    if (!hasNetwork) {
-      console.log("[executeRetryStrategy] No network detected, showing network error");
-      showError('user', 'No internet connection', 'Please check your connection and try again');
-      return;
-    }
-
-    console.log("[executeRetryStrategy] Network available, determining retry action...");
-
-    if (!initializeSuccess || lastFailedOperation === 'initialize') {
-      // Initialize failed or never succeeded, retry initialization
-      console.log("[executeRetryStrategy] Retrying initialization");
-      setLastFailedOperation(null);
-      initializePayment();
-    } else if (initializeSuccess && currentPaystackRef) {
-      // Initialize succeeded, retry verification
-      console.log("[executeRetryStrategy] Retrying verification for:", currentPaystackRef);
-      setLastFailedOperation(null);
-      setIsVerifying(true);
-      verifyPayment(currentPaystackRef);
-    } else {
-      // Inconsistent state, reset and retry from beginning
-      console.log("[executeRetryStrategy] Inconsistent state detected, starting fresh");
-      resetRequestTracking();
-      initializePayment();
-    }
-  }, [initializeSuccess, lastFailedOperation, currentPaystackRef]);
-
-  // 🔄 REQUEST TRACKING MANAGEMENT
-  const resetRequestTracking = useCallback(() => {
-    console.log("[resetRequestTracking] Clearing request tracking state");
-    setInitializeSuccess(false);
-    setLastFailedOperation(null);
-    setCurrentPaystackRef(null);
-  }, []);
   const isRetryablePaystackError = (errorMessage: string, errorDetails: string = '') => {
     const retryablePatterns = [
       'Failed to connect',
@@ -298,8 +344,6 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
       setAutoRetryTimer(null);
     }
     
-    // ✅ Reset request tracking
-    resetRequestTracking();
     
     // ✅ Only clear platformRef as requested
     localStorage.removeItem('platformRef');
@@ -307,18 +351,16 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     if (formRef.current) {
       formRef.current.reset();
     }
-  }, [autoRetryTimer, resetRequestTracking]);
+  }, [autoRetryTimer]);
 
   // VERIFY PAYMENT with enhanced error handling
   const verifyPayment = useCallback(async (masterRef: string) => {
     console.log("[verifyPayment] Starting verification for masterRef:", masterRef);
     setIsVerifying(true);
-    setLastFailedOperation(null); // Clear any previous failure state
 
     const platformRef = localStorage.getItem('platformRef');
     if (!platformRef) {
       console.error("[verifyPayment] Missing platformRef - initialize tracking issue");
-      setLastFailedOperation('verify');
       showError('developer', 'Platform reference missing', 'Payment tracking error - will retry from initialization');
       return;
     }
@@ -326,7 +368,6 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     // Double-check network before proceeding
     const hasNetwork = await hasInternet();
     if (!hasNetwork) {
-      setLastFailedOperation('verify');
       showError('user', 'No internet connection', 'Cannot verify payment status');
       return;
     }
@@ -370,21 +411,17 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
         // Handle specific Paystack errors
         if (errorMessage.includes('Transaction reference not found')) {
           console.log("[verifyPayment] Transaction not found - initialization may have failed");
-          setLastFailedOperation('verify');
-          resetRequestTracking(); // Reset tracking and retry from initialization
           const isRetryable = true;
           showError('paystack', 'Transaction not found - will retry initialization', errorDetails, isRetryable);
           return;
         } else if (errorMessage.includes('reference already used') || errorMessage.includes('already processed')) {
           console.log("[verifyPayment] Reference already used - clearing platformRef and retrying");
           localStorage.removeItem('platformRef');
-          setLastFailedOperation('verify');
           const isRetryable = true;
           showError('paystack', 'Payment reference expired - generating new reference', errorDetails, isRetryable);
           return;
         } else {
           // Other retryable Paystack errors
-          setLastFailedOperation('verify');
           const isRetryable = isRetryablePaystackError(errorMessage, errorDetails);
           showError('paystack', 'Verification failed', errorDetails, isRetryable);
           return;
@@ -399,7 +436,6 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
       if (status === 'success') {
         localStorage.removeItem('masterRef');
         localStorage.removeItem('platformRef');
-        resetRequestTracking();
       }
 
       if (parsedData.file_error || parsedData.download_error) {
@@ -434,12 +470,11 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
 
     } catch (error) {
       console.error("[verifyPayment] Verification failed:", error);
-      setLastFailedOperation('verify');
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       const isRetryable = isRetryablePaystackError(errorMessage);
       showError('paystack', 'Verification failed', errorMessage, isRetryable);
     }
-  }, [showToast, BASE_URI, resetRequestTracking]);
+  }, [showToast, BASE_URI]);
 
   // WATCH POPUP CLOSE
   const watchPopupClose = useCallback((masterRef: string, popup: Window) => {
@@ -487,14 +522,12 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     const email = (formData.get("customer_email") as string)?.trim();
     const customerName = (formData.get("customer_name") as string)?.trim();
     const customerPhone = (formData.get("customer_phone") as string)?.trim();
-    const amount = parseFloat(data.price ?? "") || 0;
+    const amount = getPriceForPaymentType();
     const fileId = data.drive_file_id;
 
     console.log("[initializePayment] Starting payment initialization...");
     setIsProcessing(true);
     setIsVerifying(false);
-    setInitializeSuccess(false); // ✅ Reset initialize tracking
-    setLastFailedOperation(null);
     hideErrorState();
     setShowResult(false);
 
@@ -502,7 +535,6 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     const hasNetwork = await hasInternet();
     if (!hasNetwork) {
       setIsProcessing(false);
-      setLastFailedOperation('initialize');
       showError('user', 'No internet connection', 'Please check your connection and try again');
       return;
     }
@@ -526,6 +558,7 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
       const payload = { 
         email, 
         amount, 
+        currency: getEffectiveCurrencyCode(),
         current_payment_platform_reference: platformRef,
         drive_file_id: fileId,
         customer_name: customerName,
@@ -561,7 +594,6 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
       // Check for Paystack-specific errors in response
       if (result.status === 'error' && result.type === 'paystack') {
         console.log("[initializePayment] Paystack error in response:", result.message);
-        setLastFailedOperation('initialize');
         const isRetryable = isRetryablePaystackError(result.message, result.details || '');
         showError('paystack', result.message || 'Payment initialization failed', result.details || '', isRetryable);
         return;
@@ -573,9 +605,7 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
 
       // ✅ SUCCESSFUL INITIALIZATION - Update tracking
       console.log("[initializePayment] ✅ Initialization successful!");
-      setInitializeSuccess(true);
       setCurrentPaystackRef(masterRef);
-      setLastFailedOperation(null);
 
       console.log("[initializePayment] Opening popup with URL:", result.data.authorization_url);
 
@@ -600,7 +630,6 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     } catch (error) {
       console.error("[initializePayment] Payment initialization failed:", error);
       setIsProcessing(false);
-      setLastFailedOperation('initialize');
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       const isRetryable = isRetryablePaystackError(errorMessage);
       showError('paystack', 'Payment initialization failed', errorMessage, isRetryable);
@@ -706,11 +735,11 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
         <div className="modal-body" ref={modalBodyRef}>
           {/* Processing/Verifying Loader - Only show when not showing result or error */}
           {(isProcessing || isVerifying) && !showResult && !showErrorState && (
-            <div className="payment-status loader-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
+            <div className="payment-status loader-container">
               <div className="status-icon">
                 <i className="fas fa-spinner fa-spin"></i>
               </div>
-              <p className="status-text" style={{ marginLeft: '10px' }}>
+              <p className="status-text">
                 {isVerifying ? 'Verifying... please wait' : 'Processing... please wait'}
               </p>
             </div>
@@ -718,7 +747,7 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
 
           {/* Error State with Auto-retry info */}
           {showErrorState && errorStateData && (
-            <div className={`error-state ${errorStateData.type}`} style={{ padding: '20px', margin: '20px 0', border: '1px solid #eee', borderRadius: '8px', backgroundColor: '#fff' }}>
+            <div className={`error-state ${errorStateData.type}`}>
               <div className="error-content">
                 <div className="error-icon">{errorStateData.icon}</div>
                 <h3>{errorStateData.title}</h3>
@@ -729,27 +758,18 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
                   </p>
                 )}
                 {errorStateData.type === 'user' && autoRetryCount < 3 && (
-                  <p className="auto-retry-info" style={{ fontSize: '0.9em', color: '#6c757d', marginTop: '10px' }}>
+                  <p className="auto-retry-info">
                     Auto-retrying in 5 seconds... (Attempt {autoRetryCount + 1}/3)
                   </p>
                 )}
                 {errorStateData.type === 'paystack' && autoRetryCount < 3 && (
-                  <p className="auto-retry-info" style={{ fontSize: '0.9em', color: '#6c757d', marginTop: '10px' }}>
+                  <p className="auto-retry-info">
                     Auto-retrying in 5 seconds... (Attempt {autoRetryCount + 1}/3)
                   </p>
                 )}
                 <button 
                   onClick={handleRetryPayment} 
-                  className="btn btn-retry" 
-                  style={{ 
-                    marginTop: '15px', 
-                    padding: '10px 20px', 
-                    backgroundColor: '#007bff', 
-                    color: 'white', 
-                    border: 'none', 
-                    borderRadius: '4px', 
-                    cursor: 'pointer' 
-                  }}
+                  className="btn btn-retry"
                 >
                   {errorStateData.type === 'user' ? 'Retry Now' : 'Retry Payment'}
                 </button>
@@ -759,14 +779,9 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
 
           {/* Payment Result */}
           {showResult && resultData && (
-            <div id="payment-result" style={{ display: 'block', padding: '20px', margin: '20px 0', border: '1px solid #eee', borderRadius: '8px', backgroundColor: '#fff' }}>
-              <div className={`payment-result ${resultData.status}`} style={{ textAlign: 'center' }}>
-                <h3 style={{ 
-                  color: resultData.status === 'success' ? '#47c363' : 
-                        resultData.status === 'pending' ? '#007bff' :
-                        resultData.status === 'abandoned' ? '#fd7e14' : '#fc544b',
-                  marginBottom: '15px'
-                }}>
+            <div id="payment-result" className="payment-result-container">
+              <div className={`payment-result ${resultData.status}`}>
+                <h3 className={`result-title status-${resultData.status}`}>
                   {resultData.status === 'success' ? 'Payment successful!' :
                    resultData.status === 'pending' ? 'Payment is being processed...' :
                    resultData.status === 'abandoned' ? 'Payment was abandoned.' :
@@ -779,19 +794,19 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
                 {resultData.paidAt && (
                   <p><small>Paid: {resultData.paidAt}</small></p>
                 )}
-                <div className="action-buttons" style={{ marginTop: '20px' }}>
+                <div className="action-buttons">
                   {resultData.status === 'pending' && (
-                    <button onClick={handleCheckStatus} className="btn check-status" style={{ margin: '0 10px', padding: '10px 20px', backgroundColor: '#17a2b8', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                    <button onClick={handleCheckStatus} className="btn check-status">
                       Check Status
                     </button>
                   )}
                   {resultData.status !== 'success' && (
-                    <button onClick={handleTryAgain} className="btn try-again" style={{ margin: '0 10px', padding: '10px 20px', backgroundColor: '#ffc107', color: 'black', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                    <button onClick={handleTryAgain} className="btn try-again">
                       Try Again
                     </button>
                   )}
                   {resultData.status === 'success' && (
-                    <button onClick={handleNewPayment} className="btn btn-primary" style={{ margin: '0 10px', padding: '10px 20px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                    <button onClick={handleNewPayment} className="btn btn-primary">
                       New Payment
                     </button>
                   )}
@@ -804,136 +819,210 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
           {!isProcessing && !isVerifying && !showErrorState && !showResult && (
             <div className="payment-form-container">
               <form ref={formRef} onSubmit={handleSubmit} id="payment-form" data-file-id={data.id}>
-                <div className="form-row" style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
-                  <div className="form-group" style={{ flex: 1 }}>
+                <div className="form-row">
+                  <div className="form-group">
                     <label htmlFor="fullName">
-                      {website_config?.PURCHASE_NAME_LABEL}
+                      {website_config?.PURCHASE_NAME_LABEL} <span className="required">*</span>
                     </label>
                     <input
                       type="text"
                       id="fullName"
                       name="customer_name"
                       placeholder="Enter your name"
-                      required
-                      style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px' }}
                     />
                   </div>
-                  <div className="form-group" style={{ flex: 1 }}>
+                  <div className="form-group">
                     <label htmlFor="email">
-                      {website_config?.PURCHASE_EMAIL_LABEL}
+                      {website_config?.PURCHASE_EMAIL_LABEL} <span className="required">*</span>
                     </label>
                     <input
                       type="email"
                       id="email"
                       name="customer_email"
                       placeholder="Enter your email"
-                      required
-                      style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px' }}
                     />
                   </div>
                 </div>
 
-                <div className="form-group" style={{ marginBottom: '20px' }}>
+                <div className="form-group">
                   <label htmlFor="phone">
-                    {website_config?.PURCHASE_PHONE_LABEL} <span style={{ color: '#dc3545' }}>*</span>
+                    {website_config?.PURCHASE_PHONE_LABEL} <span className="required">*</span>
                   </label>
                   <input
                     type="tel"
                     id="phone"
                     name="customer_phone"
                     placeholder="Enter your phone number (e.g., +1234567890)"
-                    required
-                    minLength={11}
-                    style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px' }}
                   />
-                  <small style={{ color: '#6c757d', fontSize: '0.875em' }}>
+                  <small className="form-help">
                     Phone number must be at least 11 digits
                   </small>
                 </div>
 
-                <div className="payment-summary" style={{ background: '#f8f9fa', padding: '20px', borderRadius: '8px', marginBottom: '20px' }}>
+                {/* Payment Type Selection */}
+                <div className="form-group">
+                  <label htmlFor="paymentType">
+                    Payment Type <span className="required">*</span>
+                  </label>
+                  <select
+                    id="paymentType"
+                    value={paymentType}
+                    onChange={(e) => handlePaymentTypeChange(e.target.value as 'dollar' | 'naira' | 'crypto')}
+                  >
+                    <option value="dollar">Dollar (USD)</option>
+                    <option value="naira">Naira (NGN)</option>
+                    <option value="crypto">Crypto</option>
+                  </select>
+                </div>
+
+                <div className="payment-summary">
                   <h3>{website_config?.PURCHASE_SUMMARY_TITLE}</h3>
-                  <div className="summary-row" style={{ display: 'flex', justifyContent: 'space-between', margin: '8px 0' }}>
+                  <div className="summary-row">
                     <span>{website_config?.PURCHASE_PRODUCT_LABEL}:</span>
                     <span id="summaryProduct">{data.file_name}</span>
                   </div>
-                  <div className="summary-row" style={{ display: 'flex', justifyContent: 'space-between', margin: '8px 0' }}>
+                  <div className="summary-row">
                     <span>{website_config?.PURCHASE_PRICE_LABEL}:</span>
                     <span className="amount" id="summaryPrice">
-                      ${fmt(parseFloat(data.price ?? ""))}
+                      {getCurrencySymbol()}{fmt(getPriceForPaymentType())}
                     </span>
                   </div>
-                  <div className="summary-row" style={{ display: 'flex', justifyContent: 'space-between', margin: '8px 0' }}>
+                  <div className="summary-row">
                     <span>{website_config?.PURCHASE_TAX_LABEL}:</span>
                     <span id="fee-amount">
-                      ${fmt(parseFloat(data.price ?? "") * PAYSTACK_PERCENTAGE_FEE)}
+                      {getCurrencySymbol()}{fmt(getPriceForPaymentType() * PAYSTACK_PERCENTAGE_FEE)}
                     </span>
                   </div>
-                  <div className="summary-row total" style={{ display: 'flex', justifyContent: 'space-between', margin: '8px 0', fontWeight: 'bold', borderTop: '1px solid #eee', paddingTop: '10px' }}>
+                  <div className="summary-row total">
                     <span>{website_config?.PURCHASE_TOTAL_LABEL}:</span>
                     <span id="total-amount">
-                      ${fmt(parseFloat(data.price ?? "") * (1 + PAYSTACK_PERCENTAGE_FEE))}
+                      {getCurrencySymbol()}{fmt(getPriceForPaymentType() * (1 + PAYSTACK_PERCENTAGE_FEE))}
                     </span>
                   </div>
                 </div>
 
-                <div className="payment-methods" style={{ marginBottom: '20px' }}>
+                <div className="payment-methods">
                   <h3>{website_config?.PURCHASE_METHOD_TITLE}</h3>
-                  <div className="payment-options" style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-                    <label className="payment-option" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', border: '1px solid #ddd', borderRadius: '6px' }}>
-                      <input
-                        type="radio"
-                        name="payment_method"
-                        value="stripe"
-                        defaultChecked
-                      />
-                      <div className="payment-card" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <i className="fab fa-cc-stripe"></i>
-                        <span>{website_config?.PURCHASE_STRIPE_LABEL}</span>
+                  <div className="payment-options">
+                    {availablePaymentMethods.includes('stripe') && (
+                      <label className="payment-option">
+                        <input
+                          type="radio"
+                          name="payment_method"
+                          value="stripe"
+                          defaultChecked={availablePaymentMethods[0] === 'stripe'}
+                        />
+                        <div className="payment-card">
+                          <i className="fab fa-cc-stripe"></i>
+                          <span>{website_config?.PURCHASE_STRIPE_LABEL || 'Stripe'}</span>
+                        </div>
+                      </label>
+                    )}
+                    {availablePaymentMethods.includes('paypal') && (
+                      <label className="payment-option">
+                        <input 
+                          type="radio" 
+                          name="payment_method" 
+                          value="paypal"
+                          defaultChecked={availablePaymentMethods[0] === 'paypal'}
+                        />
+                        <div className="payment-card">
+                          <i className="fab fa-paypal"></i>
+                          <span>{website_config?.PURCHASE_PAYPAL_LABEL || 'PayPal'}</span>
+                        </div>
+                      </label>
+                    )}
+                    {availablePaymentMethods.includes('paystack') && (
+                      <label className="payment-option">
+                        <input 
+                          type="radio" 
+                          name="payment_method" 
+                          value="paystack"
+                          defaultChecked={availablePaymentMethods[0] === 'paystack'}
+                        />
+                        <div className="payment-card">
+                          <i className="fas fa-money-bill-wave"></i>
+                          <span>{website_config?.PURCHASE_PAYSTACK_LABEL || 'Paystack'}</span>
+                        </div>
+                      </label>
+                    )}
+                    {availablePaymentMethods.includes('nowpayments') && (
+                      <div className="crypto-payment-options">
+                        <label className="payment-option crypto-option">
+                          <input 
+                            type="radio" 
+                            name="payment_method" 
+                            value="bitcoin"
+                            defaultChecked={true}
+                          />
+                          <div className="payment-card">
+                            <i className="fab fa-bitcoin bitcoin-icon"></i>
+                            <div className="crypto-info">
+                              <span>Bitcoin (BTC)</span>
+                              {cryptoLoading ? (
+                                <small>Loading price...</small>
+                              ) : (
+                                <small>
+                                  {formatCryptoAmount(getPriceForPaymentType() * (1 + PAYSTACK_PERCENTAGE_FEE), 'bitcoin')} {getCryptoSymbol('bitcoin')} 
+                                  <span style={{ color: '#666' }}> (${fmt(getPriceForPaymentType() * (1 + PAYSTACK_PERCENTAGE_FEE))})</span>
+                                </small>
+                              )}
+                            </div>
+                          </div>
+                        </label>
+                        <label className="payment-option crypto-option">
+                          <input 
+                            type="radio" 
+                            name="payment_method" 
+                            value="solana"
+                          />
+                          <div className="payment-card">
+                            <i className="fas fa-coins solana-icon"></i>
+                            <div className="crypto-info">
+                              <span>Solana (SOL)</span>
+                              {cryptoLoading ? (
+                                <small>Loading price...</small>
+                              ) : (
+                                <small>
+                                  {formatCryptoAmount(getPriceForPaymentType() * (1 + PAYSTACK_PERCENTAGE_FEE), 'solana')} {getCryptoSymbol('solana')} 
+                                  <span style={{ color: '#666' }}> (${fmt(getPriceForPaymentType() * (1 + PAYSTACK_PERCENTAGE_FEE))})</span>
+                                </small>
+                              )}
+                            </div>
+                          </div>
+                        </label>
+                        <label className="payment-option crypto-option">
+                          <input 
+                            type="radio" 
+                            name="payment_method" 
+                            value="tron"
+                          />
+                          <div className="payment-card">
+                            <i className="fas fa-coins tron-icon"></i>
+                            <div className="crypto-info">
+                              <span>Tron (TRX)</span>
+                              {cryptoLoading ? (
+                                <small>Loading price...</small>
+                              ) : (
+                                <small>
+                                  {formatCryptoAmount(getPriceForPaymentType() * (1 + PAYSTACK_PERCENTAGE_FEE), 'tron')} {getCryptoSymbol('tron')} 
+                                  <span style={{ color: '#666' }}> (${fmt(getPriceForPaymentType() * (1 + PAYSTACK_PERCENTAGE_FEE))})</span>
+                                </small>
+                              )}
+                            </div>
+                          </div>
+                        </label>
                       </div>
-                    </label>
-                    <label className="payment-option" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', border: '1px solid #ddd', borderRadius: '6px' }}>
-                      <input type="radio" name="payment_method" value="paypal" />
-                      <div className="payment-card" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <i className="fab fa-paypal"></i>
-                        <span>{website_config?.PURCHASE_PAYPAL_LABEL}</span>
-                      </div>
-                    </label>
-                    <label className="payment-option" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', border: '1px solid #ddd', borderRadius: '6px' }}>
-                      <input
-                        type="radio"
-                        name="payment_method"
-                        value="bank_transfer"
-                      />
-                      <div className="payment-card" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <i className="fas fa-university"></i>
-                        <span>{website_config?.PURCHASE_BANK_LABEL}</span>
-                      </div>
-                    </label>
-                    <label className="payment-option" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', border: '1px solid #ddd', borderRadius: '6px' }}>
-                      <input type="radio" name="payment_method" value="crypto" />
-                      <div className="payment-card" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <i className="fab fa-bitcoin"></i>
-                        <span>{website_config?.PURCHASE_CRYPTO_LABEL}</span>
-                      </div>
-                    </label>
+                    )}
                   </div>
                 </div>
 
-                <div className="form-actions" style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
+                <div className="form-actions">
                   <button
                     type="submit"
                     className="btn btn-primary"
                     id="pay-btn"
                     disabled={isProcessing || isVerifying}
-                    style={{ 
-                      padding: '12px 30px', 
-                      background: '#6777ef', 
-                      color: 'white', 
-                      border: 'none', 
-                      borderRadius: '6px',
-                      cursor: (isProcessing || isVerifying) ? 'not-allowed' : 'pointer'
-                    }}
                   >
                     <i className="fas fa-lock"></i> {website_config?.PURCHASE_BUTTON}
                   </button>
@@ -942,14 +1031,6 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
                     className="btn btn-secondary"
                     onClick={onClose}
                     disabled={isProcessing || isVerifying}
-                    style={{ 
-                      padding: '12px 30px', 
-                      background: '#6c757d', 
-                      color: 'white', 
-                      border: 'none', 
-                      borderRadius: '6px',
-                      cursor: (isProcessing || isVerifying) ? 'not-allowed' : 'pointer'
-                    }}
                   >
                     {website_config?.PURCHASE_CANCEL}
                   </button>

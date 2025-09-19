@@ -26,22 +26,50 @@ const ModalAbout = ({ onClose }: ModalProps) => {
 
           <div className="team-grid">
             <div className="team-member">
-              <img src={website_config?.TEAM_MEMBER_1_IMG} alt={website_config?.TEAM_MEMBER_1_NAME} className="team-img" />
+              <img 
+                src={website_config?.TEAM_MEMBER_1_IMG} 
+                alt={website_config?.TEAM_MEMBER_1_NAME} 
+                className="team-img"
+                onError={(e) => {
+                  e.currentTarget.src = '/no_img.png';
+                }}
+              />
               <h4 className="team-name">{website_config?.TEAM_MEMBER_1_NAME}</h4>
               <p className="team-role">{website_config?.TEAM_MEMBER_1_ROLE}</p>
             </div>
             <div className="team-member">
-              <img src={website_config?.TEAM_MEMBER_2_IMG} alt={website_config?.TEAM_MEMBER_2_NAME} className="team-img" />
+              <img 
+                src={website_config?.TEAM_MEMBER_2_IMG} 
+                alt={website_config?.TEAM_MEMBER_2_NAME} 
+                className="team-img"
+                onError={(e) => {
+                  e.currentTarget.src = '/no_img.png';
+                }}
+              />
               <h4 className="team-name">{website_config?.TEAM_MEMBER_2_NAME}</h4>
               <p className="team-role">{website_config?.TEAM_MEMBER_2_ROLE}</p>
             </div>
             <div className="team-member">
-              <img src={website_config?.TEAM_MEMBER_3_IMG} alt={website_config?.TEAM_MEMBER_3_NAME} className="team-img" />
+              <img 
+                src={website_config?.TEAM_MEMBER_3_IMG} 
+                alt={website_config?.TEAM_MEMBER_3_NAME} 
+                className="team-img"
+                onError={(e) => {
+                  e.currentTarget.src = '/no_img.png';
+                }}
+              />
               <h4 className="team-name">{website_config?.TEAM_MEMBER_3_NAME}</h4>
               <p className="team-role">{website_config?.TEAM_MEMBER_3_ROLE}</p>
             </div>
             <div className="team-member">
-              <img src={website_config?.TEAM_MEMBER_4_IMG} alt={website_config?.TEAM_MEMBER_4_NAME} className="team-img" />
+              <img 
+                src={website_config?.TEAM_MEMBER_4_IMG} 
+                alt={website_config?.TEAM_MEMBER_4_NAME} 
+                className="team-img"
+                onError={(e) => {
+                  e.currentTarget.src = '/no_img.png';
+                }}
+              />
               <h4 className="team-name">{website_config?.TEAM_MEMBER_4_NAME}</h4>
               <p className="team-role">{website_config?.TEAM_MEMBER_4_ROLE}</p>
             </div>
