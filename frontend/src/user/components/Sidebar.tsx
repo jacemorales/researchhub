@@ -34,7 +34,7 @@ const Sidebar = () => {
         <div className="social-links">
           <a href="#"><i className="fab fa-twitter" /></a>
           <a href="#"><i className="fab fa-linkedin-in" /></a>
-          <a href="#"><i className="fab fa-google-scholar" /></a>
+          <a href="#"><i className="fab fa-github" /></a>
           <a href="#"><i className="fab fa-researchgate" /></a>
         </div>
 

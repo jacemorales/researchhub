@@ -1,5 +1,6 @@
 // src/user/Home.tsx
 import { useData } from "../hooks/useData";
+import { useNavigate } from "react-router-dom";
 
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
@@ -7,6 +8,7 @@ import Footer from "./components/Footer";
 
 const Home = () => {
   const { website_config } = useData();
+  const navigate = useNavigate();
 
   return (
     <>
@@ -16,13 +18,13 @@ const Home = () => {
         <Sidebar />
 
         <div className="main-resources" id="levelCards">
-          <h2 className="section-title">{website_config?.RESOURCES_TITLE}</h2>
-          <p className="section-subtitle">{website_config?.RESOURCE_BIO}</p>
+          <h2 className="section-title">{website_config?.SITE_RESOURCES_TITLE}</h2>
+          <p className="section-subtitle">{website_config?.SITE_RESOURCE_BIO}</p>
 
           <div className="level-cards">
             <div
               className="level-card"
-              onClick={() => (window.location.href = "/user/marketplace?level=undergraduate")}
+              onClick={() => navigate("/user/marketplace?level=undergraduate")}
             >
               <div className="level-icon undergraduate">
                 <i className="fas fa-user-graduate" />
@@ -34,7 +36,7 @@ const Home = () => {
 
             <div
               className="level-card"
-              onClick={() => (window.location.href = "/user/marketplace?level=postgraduate")}
+              onClick={() => navigate("/user/marketplace?level=postgraduate")}
             >
               <div className="level-icon postgraduate">
                 <i className="fas fa-graduation-cap" />

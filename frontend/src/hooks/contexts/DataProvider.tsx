@@ -9,7 +9,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const [website_config, setWebsiteConfig] = useState<WebsiteConfig | null>(null);
   const [academic_files, setAcademicFiles] = useState<AcademicFile[] | null>(null);
   const [payments, setPayments] = useState<Payment[] | null>(null);
-  const [user_location, setUserLocation] = useState<{ country: string; state: string; city?: string; ip?: string | null; currency: string; currency_symbol: string; api_status?: string; raw_response?: any; ip_type?: string } | null>(null);
+  const [user_location, setUserLocation] = useState<{ country: string; state: string; city?: string; ip?: string | null; currency: string; currency_symbol: string; api_status?: string; raw_response?: unknown; ip_type?: string } | null>(null);
   const [currency_code, setCurrencyCode] = useState<'USD' | 'NGN'>('USD');
 
   // Check if we already have location data cached
@@ -30,7 +30,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   // Cache location data
-  const setCachedLocation = (locationData: any) => {
+  const setCachedLocation = (locationData: unknown) => {
     try {
       localStorage.setItem('research_hub_location', JSON.stringify({
         data: locationData,
@@ -59,22 +59,20 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     fetchInitialData();
   }, []);
 
-  // Fetch location separately after initial data loads - with caching
+  // Fetch location silently in background - with caching
   useEffect(() => {
     const fetchLocation = async () => {
       // Check cache first
       const cachedLocation = getCachedLocation();
       if (cachedLocation) {
-        console.log("Using cached location data");
         setUserLocation(cachedLocation);
         const code = cachedLocation.currency === 'NGN' ? 'NGN' : 'USD';
         setCurrencyCode(code);
         return;
       }
 
-      // Fetch fresh location data
+      // Fetch fresh location data silently
       try {
-        console.log("Fetching fresh location data");
         const res = await fetch(`${API_BASE_URL}/backend/db_fetch.php?location_only=true`);
         const result = await res.json();
         if (result.success && result.data.user_location) {
@@ -83,8 +81,8 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           const code = result.data.user_location.currency === 'NGN' ? 'NGN' : 'USD';
           setCurrencyCode(code);
         }
-      } catch (err) {
-        console.error("Error fetching location:", err);
+      } catch {
+        // Silent error handling - don't log to avoid noise
       }
     };
     

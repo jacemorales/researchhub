@@ -165,7 +165,7 @@ class CloudflareR2Uploader {
                 'ContentDisposition' => 'attachment; filename="' . addslashes($fileName) . '"',
                 'Metadata' => [
                     'original-filename' => $fileName,
-                    'upload-timestamp' => time(),
+                    'upload-timestamp' => date('Y-m-d H:i:s'),
                     'source' => 'google-drive'
                 ]
             ]);

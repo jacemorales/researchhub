@@ -1,5 +1,6 @@
 // src/components/Header.tsx
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import '../assets/style.css';
 
 import { useData } from "../../hooks/useData";
@@ -36,9 +37,7 @@ const Header = () => {
     <>
       <header>
         <div className="logo">
-          <div className="logo-icon">
-            <i className="fas fa-book-open" />
-          </div>
+            <i className="fas fa-book-open logo-icon" />
           <div className="logo-text">
             <h1>{website_config?.SITE_NAME}</h1>
             <p>{website_config?.SITE_DESC}</p>
@@ -49,7 +48,7 @@ const Header = () => {
         <nav className="desktop-nav">
           <ul>
             <li>
-              <a href="/"><i className="fas fa-home" /> Home</a>
+              <Link to="/user"><i className="fas fa-home" /> Home</Link>
             </li>
             <li>
               <a href="#levelCards"><i className="fas fa-book" /> Resources</a>
@@ -80,9 +79,9 @@ const Header = () => {
       <nav className={`mobile-nav ${isMobileMenuOpen ? 'open' : ''}`}>
         <ul>
           <li>
-            <a href="/" onClick={() => setIsMobileMenuOpen(false)}>
+            <Link to="/user" onClick={() => setIsMobileMenuOpen(false)}>
               <i className="fas fa-home" /> Home
-            </a>
+            </Link>
           </li>
           <li>
             <a href="#levelCards" onClick={() => setIsMobileMenuOpen(false)}>

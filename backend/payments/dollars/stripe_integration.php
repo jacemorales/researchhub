@@ -1,6 +1,22 @@
 <?php
-// backend/payments/stripe_integration.php - Stripe Payment Integration
-require_once __DIR__ . '/../config.php';
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Set CORS headers first, before any output
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Content-Type: application/json');
+
+// Handle preflight requests
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
+// Now include other files
+require_once __DIR__ . '/../../config.php';
 
 class StripeIntegration {
     private $secretKey;
@@ -10,7 +26,7 @@ class StripeIntegration {
     public function __construct() {
         $this->secretKey = STRIPE_SECRET_KEY;
         $this->publishableKey = STRIPE_PUBLISHABLE_KEY;
-        $this->webhookSecret = $_ENV['STRIPE_WEBHOOK_SECRET'] ?? '';
+        $this->webhookSecret = STRIPE_WEBHOOK_SECRET;
         
         if (empty($this->secretKey)) {
             throw new Exception('Stripe secret key not configured');
@@ -205,7 +221,7 @@ class StripeIntegration {
             }
 
             // Generate reference
-            $reference = 'STRIPE_' . uniqid() . '_' . time();
+            $reference = 'STRIPE_' . uniqid() . '_' . date('YmdHis');
 
             // Create payment record in database
             $pdo = getPDOConnection();

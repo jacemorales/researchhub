@@ -17,7 +17,7 @@ CREATE TABLE website_config (
     config_description TEXT,
     is_editable BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at VARCHAR(50) NULL,
     INDEX idx_config_key (config_key),
     INDEX idx_config_category (config_category)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -154,7 +154,7 @@ INSERT INTO website_config (config_key, config_value, config_type, config_catego
 ('PURCHASE_TAX_LABEL', 'Tax', 'text', 'purchase', 'Purchase summary tax label'),
 ('PURCHASE_TOTAL_LABEL', 'Total', 'text', 'purchase', 'Purchase summary total label'),
 ('PURCHASE_METHOD_TITLE', 'Payment Method', 'text', 'purchase', 'Purchase payment method title'),
-('PURCHASE_STRIPE_LABEL', 'Credit/Debit Card', 'text', 'purchase', 'Stripe payment option label'),
+('PURCHASE_STRIPE_LABEL', 'Stripe', 'text', 'purchase', 'Stripe payment option label'),
 ('PURCHASE_PAYPAL_LABEL', 'PayPal', 'text', 'purchase', 'PayPal payment option label'),
 ('PURCHASE_BANK_LABEL', 'Bank Transfer', 'text', 'purchase', 'Bank transfer payment option label'),
 ('PURCHASE_CRYPTO_LABEL', 'Cryptocurrency', 'text', 'purchase', 'Cryptocurrency payment option label'),

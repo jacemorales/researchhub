@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useData } from '../../hooks/useData';
 import { useCUD } from '../../hooks/useCUD';
+import { useMail } from '../../hooks/useMail';
 import type { Payment, AcademicFile } from '../../hooks/contexts/DataContext';
 import { AdminToast } from '../../hooks/Toast';
 import Header from '../components/Header';
@@ -29,6 +30,7 @@ interface AdminStatusStats {
 const Payments: React.FC = () => {
     const { payments, academic_files } = useData();
     const { execute, loading } = useCUD();
+    const { sendMail } = useMail();
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [searchTerm, setSearchTerm] = useState<string>('');
@@ -36,8 +38,11 @@ const Payments: React.FC = () => {
     const [isLogsModalOpen, setIsLogsModalOpen] = useState<boolean>(false);
     const [isCustomerModalOpen, setIsCustomerModalOpen] = useState<boolean>(false);
     const [isFileModalOpen, setIsFileModalOpen] = useState<boolean>(false);
+    const [isSendFileModalOpen, setIsSendFileModalOpen] = useState<boolean>(false);
     const [isActionMenuOpen, setIsActionMenuOpen] = useState<number | null>(null);
     const [activeLogTab, setActiveLogTab] = useState<'filtered' | 'raw'>('filtered');
+    const [fileLink, setFileLink] = useState<string>('');
+    const [linkExpires, setLinkExpires] = useState<string>('');
 
     // Helper: Format status for display
     const formatStatus = useCallback((status: string | null | undefined): string => {
@@ -71,6 +76,60 @@ const Payments: React.FC = () => {
         };
         return icons[method] || 'fas fa-credit-card';
     }, []);
+
+    // Helper: Check if payment can send file
+    const canSendFile = useCallback((payment: Payment): boolean => {
+        return payment.payment_status === 'completed' && payment.admin_status === 'approved';
+    }, []);
+
+    // Helper: Handle send file button click with validation
+    const handleSendFileClick = useCallback((payment: Payment) => {
+        if (payment.payment_status !== 'completed') {
+            setToast({ message: "Can't send file due to incomplete payment", type: 'error' });
+            return;
+        }
+        
+        if (payment.admin_status !== 'approved') {
+            setToast({ message: "Please confirm the payment first", type: 'error' });
+            return;
+        }
+        
+        setSelectedPayment(payment);
+        setIsSendFileModalOpen(true);
+    }, []);
+
+    // Helper: Handle send file
+    const handleSendFile = useCallback(async () => {
+        if (!selectedPayment) return;
+        
+        const fileInfo = getFileInfoByDriveFileId(String(selectedPayment.drive_file_id));
+        if (!fileInfo) {
+            setToast({ message: "File information not found", type: 'error' });
+            return;
+        }
+        
+        try {
+            const result = await sendMail({
+                email: 'file',
+                recipient_email: selectedPayment.customer_email,
+                customer_name: selectedPayment.customer_name,
+                file_name: fileInfo.file_name,
+                file_link: fileLink,
+                link_expires: linkExpires,
+            });
+            
+            if (result.success) {
+                setToast({ message: "File email sent successfully", type: 'success' });
+                setIsSendFileModalOpen(false);
+                setFileLink('');
+                setLinkExpires('');
+            } else {
+                setToast({ message: result.error || "Failed to send file email", type: 'error' });
+            }
+        } catch (error) {
+            setToast({ message: "Failed to send file email", type: 'error' });
+        }
+    }, [selectedPayment, fileLink, linkExpires, getFileInfoByDriveFileId, sendMail]);
 
     // Helper: Format date to social media style
     const formatSocialDate = useCallback((dateString: string): string => {
@@ -324,18 +383,22 @@ const Payments: React.FC = () => {
             return;
         }
 
-        const result = await execute(
-            { table: 'payments', action: 'update' },
-            {
-                id: paymentId,
-                admin_status: status,
-            }
-        );
+        try {
+            const result = await execute(
+                { table: 'payments', action: 'update' },
+                {
+                    id: paymentId,
+                    admin_status: status,
+                }
+            );
 
-        if (result.success) {
-            showToast(`Payment marked as ${status}!`, 'success');
-        } else {
-            showToast(result.error || 'Failed to update payment status.', 'error');
+            if (result.success) {
+                showToast(`Payment marked as ${status}!`, 'success');
+            } else {
+                showToast(result.error || 'Failed to update payment status.', 'error');
+            }
+        } catch (error) {
+            showToast('Failed to update payment status.', 'error');
         }
     }, [execute, showToast]);
 
@@ -865,6 +928,119 @@ const Payments: React.FC = () => {
                                                 </span>
                                             </div>
                                         )}
+                                    </>
+                                );
+                            })()}
+                            
+                            <div className="modal-actions" style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                                <button
+                                    className={`btn ${canSendFile(selectedPayment) ? 'btn-primary' : 'btn-secondary'}`}
+                                    onClick={() => handleSendFileClick(selectedPayment)}
+                                    style={{ 
+                                        opacity: canSendFile(selectedPayment) ? 1 : 0.6,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    <i className="fas fa-paper-plane" /> Send File
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Send File Modal */}
+            {isSendFileModalOpen && selectedPayment && (
+                <div className="modal send-file-modal" onClick={(e) => e.target === e.currentTarget && setIsSendFileModalOpen(false)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <span className="close-modal" onClick={() => setIsSendFileModalOpen(false)}>
+                            &times;
+                        </span>
+                        <div className="modal-header">
+                            <h2 className="modal-title">Send File to Customer</h2>
+                        </div>
+                        <div className="modal-body">
+                            {(() => {
+                                const fileInfo = getFileInfoByDriveFileId(String(selectedPayment.drive_file_id));
+                                if (!fileInfo) {
+                                    return <div>File information not found</div>;
+                                }
+                                
+                                return (
+                                    <>
+                                        <div className="form-group">
+                                            <label>Customer Email:</label>
+                                            <input 
+                                                type="email" 
+                                                value={selectedPayment.customer_email} 
+                                                disabled 
+                                                className="form-control"
+                                            />
+                                        </div>
+                                        
+                                        <div className="form-group">
+                                            <label>Customer Name:</label>
+                                            <input 
+                                                type="text" 
+                                                value={selectedPayment.customer_name} 
+                                                disabled 
+                                                className="form-control"
+                                            />
+                                        </div>
+                                        
+                                        <div className="form-group">
+                                            <label>File Name:</label>
+                                            <input 
+                                                type="text" 
+                                                value={fileInfo.file_name} 
+                                                disabled 
+                                                className="form-control"
+                                            />
+                                        </div>
+                                        
+                                        <div className="form-group">
+                                            <label htmlFor="fileLink">File Link:</label>
+                                            <input 
+                                                type="url" 
+                                                id="fileLink"
+                                                value={fileLink}
+                                                onChange={(e) => setFileLink(e.target.value)}
+                                                placeholder="https://example.com/file.pdf"
+                                                className="form-control"
+                                            />
+                                        </div>
+                                        
+                                        <div className="form-group">
+                                            <label htmlFor="linkExpires">Link Expires:</label>
+                                            <input 
+                                                type="datetime-local" 
+                                                id="linkExpires"
+                                                value={linkExpires}
+                                                onChange={(e) => setLinkExpires(e.target.value)}
+                                                className="form-control"
+                                                min={new Date().toISOString().slice(0, 16)}
+                                            />
+                                        </div>
+                                        
+                                        <div className="modal-actions" style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                                            <button
+                                                className="btn btn-secondary"
+                                                onClick={() => {
+                                                    setIsSendFileModalOpen(false);
+                                                    setFileLink('');
+                                                    setLinkExpires('');
+                                                }}
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                className="btn btn-primary"
+                                                onClick={handleSendFile}
+                                                disabled={!fileLink || !linkExpires}
+                                            >
+                                                <i className="fas fa-paper-plane" /> Send File
+                                            </button>
+                                        </div>
                                     </>
                                 );
                             })()}

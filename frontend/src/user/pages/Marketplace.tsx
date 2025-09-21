@@ -1,5 +1,6 @@
 // Marketplace.tsx
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useData } from "../../hooks/useData";
 import { UserToast } from "../../hooks/Toast";
 
@@ -88,7 +89,7 @@ const Marketplace = () => {
       <div className="marketplace-container" id="levelCards">
         {/* Breadcrumb */}
         <div className="breadcrumb">
-          <a href="/user">Home</a>
+          <Link to="/user">Home</Link>
           <span>/</span>
           <a href="#" className="active">
             {level.charAt(0).toUpperCase() + level.slice(1)} Resources

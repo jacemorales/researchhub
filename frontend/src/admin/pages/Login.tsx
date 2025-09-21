@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminToast } from '../../hooks/Toast';
 import '../assets/admin.css';
+import '../assets/config.css';
 
 interface LoginCredentials {
   username: string;

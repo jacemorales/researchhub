@@ -16,9 +16,9 @@ CREATE TABLE contact_messages (
     contact_message TEXT NOT NULL,
     status ENUM('new', 'read', 'replied', 'archived') DEFAULT 'new',
     admin_notes TEXT NULL,
-    replied_at TIMESTAMP NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    replied_at VARCHAR(50) NULL,
+    created_at VARCHAR(50) NOT NULL,
+    updated_at VARCHAR(50) NULL,
     
     INDEX idx_status (status),
     INDEX idx_contact_email (contact_email),

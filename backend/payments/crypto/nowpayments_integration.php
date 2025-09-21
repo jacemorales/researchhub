@@ -1,6 +1,22 @@
 <?php
-// backend/payments/nowpayments_integration.php - NowPayments Crypto Integration
-require_once __DIR__ . '/../config.php';
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Set CORS headers first, before any output
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Content-Type: application/json');
+
+// Handle preflight requests
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
+// Now include other files
+require_once __DIR__ . '/../../config.php';
 
 class NowPaymentsIntegration {
     private $apiKey;
@@ -21,7 +37,7 @@ class NowPaymentsIntegration {
      */
     public function createPayment($amount, $currency, $metadata = []) {
         try {
-            $reference = 'NOWPAY_' . uniqid() . '_' . time();
+            $reference = 'NOWPAY_' . uniqid() . '_' . date('YmdHis');
             
             // Get available cryptocurrencies
             $cryptoCurrencies = $this->getAvailableCurrencies();
@@ -42,7 +58,7 @@ class NowPaymentsIntegration {
                 'pay_currency' => $cryptoCurrency,
                 'order_id' => $reference,
                 'order_description' => $metadata['description'] ?? 'Academic File Purchase',
-                'ipn_callback_url' => $_ENV['NOWPAYMENTS_CALLBACK_URL'] ?? '',
+                'ipn_callback_url' => NOWPAYMENTS_CALLBACK_URL,
                 'case' => 'success',
                 'case_type' => 'url'
             ];
@@ -181,7 +197,7 @@ class NowPaymentsIntegration {
             }
 
             // Generate reference
-            $reference = 'NOWPAY_' . uniqid() . '_' . time();
+            $reference = 'NOWPAY_' . uniqid() . '_' . date('YmdHis');
 
             // Create payment record in database
             $pdo = getPDOConnection();

@@ -8,6 +8,11 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Credentials: true");
 
+// Universal datetime definition for all timestamp columns
+require_once __DIR__ . '/config.php';
+$datetime_now = getFormattedDateTime();
+$datetime_full = $datetime_now['full'];
+
 // Handle preflight requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
@@ -79,6 +84,11 @@ class GenericDatabaseManager {
             return $this->createAcademicFile($data);
         }
 
+        // Remove any datetime values from posted data and add universal datetime
+        global $datetime_full;
+        unset($data['created_at'], $data['updated_at'], $data['modified_date'], $data['started_at'], $data['completed_at']);
+        $data['created_at'] = $datetime_full;
+
         $columns = array_keys($data);
         $placeholders = array_fill(0, count($columns), '?');
         $sql = "INSERT INTO {$table} (" . implode(', ', $columns) . ") VALUES (" . implode(', ', $placeholders) . ")";
@@ -94,13 +104,19 @@ class GenericDatabaseManager {
     }
 
     private function createAcademicFile($data) {
-        // Validate required fields
-        $required_fields = ['drive_file_id', 'file_name', 'file_type', 'file_size', 'modified_date', 'category', 'level'];
+        // Validate required fields (excluding datetime fields as they'll be set universally)
+        $required_fields = ['drive_file_id', 'file_name', 'file_type', 'file_size', 'category', 'level'];
         foreach ($required_fields as $field) {
             if (!isset($data[$field]) || empty($data[$field])) {
                 throw new Exception("Missing required field: {$field}");
             }
         }
+
+        // Remove any datetime values from posted data and add universal datetime
+        global $datetime_full;
+        unset($data['created_at'], $data['updated_at']);
+        $data['created_at'] = $datetime_full;
+        $data['modified_date'] = $datetime_full; // Add modified_date for Google Drive file modification time
 
         // Validate category and level
         $valid_categories = ['research', 'thesis', 'dissertation', 'assignment', 'project', 'presentation', 'other'];
@@ -123,8 +139,8 @@ class GenericDatabaseManager {
             // Update existing file
             $sql = "
                 UPDATE academic_files 
-                SET file_name = ?, file_type = ?, file_size = ?, modified_date = ?, 
-                    description = ?, category = ?, level = ?, price = ?, updated_at = CURRENT_TIMESTAMP
+                SET file_name = ?, file_type = ?, file_size = ?, modified_date = ?,
+                    description = ?, category = ?, level = ?, price = ?, updated_at = ?
                 WHERE drive_file_id = ?
             ";
             $stmt = $this->pdo->prepare($sql);
@@ -137,6 +153,7 @@ class GenericDatabaseManager {
                 $data['category'],
                 $data['level'],
                 isset($data['price']) ? json_encode($data['price']) : null,
+                $datetime_full,
                 $data['drive_file_id']
             ]);
 
@@ -149,8 +166,8 @@ class GenericDatabaseManager {
             // Insert new file
             $sql = "
                 INSERT INTO academic_files 
-                (drive_file_id, file_name, file_type, file_size, modified_date, description, category, level, price)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (drive_file_id, file_name, file_type, file_size, modified_date, description, category, level, price, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ";
             $stmt = $this->pdo->prepare($sql);
             $result = $stmt->execute([
@@ -162,7 +179,8 @@ class GenericDatabaseManager {
                 $data['description'] ?? null,
                 $data['category'],
                 $data['level'],
-                isset($data['price']) ? json_encode($data['price']) : null
+                isset($data['price']) ? json_encode($data['price']) : null,
+                $data['created_at']
             ]);
 
             return [
@@ -174,17 +192,21 @@ class GenericDatabaseManager {
     }
 
     private function updateRecord($table, $data) {
+        // Universal datetime for updates
+        global $datetime_full;
+        
         // Special handling for 'website_config'
         if ($table === 'website_config') {
             if (!isset($data['config_key']) || !isset($data['config_value'])) {
                 throw new Exception("For 'website_config' update, 'config_key' and 'config_value' are required.");
             }
 
-            $sql = "UPDATE {$table} SET config_value = :config_value, updated_at = CURRENT_TIMESTAMP WHERE config_key = :config_key";
+            $sql = "UPDATE {$table} SET config_value = :config_value, updated_at = :updated_at WHERE config_key = :config_key";
             $stmt = $this->pdo->prepare($sql);
             $result = $stmt->execute([
                 ':config_value' => $data['config_value'],
-                ':config_key' => $data['config_key']
+                ':config_key' => $data['config_key'],
+                ':updated_at' => $datetime_full
             ]);
 
             if ($stmt->rowCount() === 0) {
@@ -206,9 +228,9 @@ class GenericDatabaseManager {
             $updates = [];
             $params = [':id' => $data['id']];
 
-            // Allow updating multiple fields
+            // Allow updating multiple fields (exclude datetime fields)
             foreach ($data as $key => $value) {
-                if ($key !== 'id') {
+                if ($key !== 'id' && !in_array($key, ['created_at', 'updated_at', 'started_at', 'completed_at'])) {
                     $updates[] = "{$key} = :{$key}";
                     $params[":{$key}"] = $value;
                 }
@@ -218,7 +240,11 @@ class GenericDatabaseManager {
                 throw new Exception("No fields to update in payments table.");
             }
 
-            $sql = "UPDATE {$table} SET " . implode(', ', $updates) . ", updated_at = CURRENT_TIMESTAMP WHERE id = :id";
+            // Add universal datetime for updated_at
+            $updates[] = "updated_at = :updated_at";
+            $params[':updated_at'] = $datetime_full;
+            
+            $sql = "UPDATE {$table} SET " . implode(', ', $updates) . " WHERE id = :id";
             $stmt = $this->pdo->prepare($sql);
             $result = $stmt->execute($params);
 
@@ -240,6 +266,7 @@ class GenericDatabaseManager {
 
             $id = $data['id'];
             unset($data['id']); // Remove 'id' from the data to be updated
+            unset($data['created_at'], $data['updated_at'], $data['modified_date'], $data['started_at'], $data['completed_at']); // Remove datetime fields
 
             if (empty($data)) {
                 throw new Exception("No update data provided.");
@@ -249,9 +276,13 @@ class GenericDatabaseManager {
             foreach ($data as $column => $value) {
                 $setClause[] = "{$column} = :{$column}";
             }
-            $sql = "UPDATE {$table} SET " . implode(', ', $setClause) . ", updated_at = CURRENT_TIMESTAMP WHERE id = :id";
+            
+            // Add universal datetime for updated_at
+            $setClause[] = "updated_at = :updated_at";
+            $sql = "UPDATE {$table} SET " . implode(', ', $setClause) . " WHERE id = :id";
 
             $data['id'] = $id; // Add 'id' back for binding
+            $data['updated_at'] = $datetime_full; // Add universal datetime
             $stmt = $this->pdo->prepare($sql);
             $result = $stmt->execute($data);
 

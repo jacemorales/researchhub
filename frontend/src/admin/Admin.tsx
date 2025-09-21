@@ -2,9 +2,8 @@
 import React, { useEffect, useState, useRef } from "react";
 import Header from "./components/Header";
 import { useCUD } from "../hooks/useCUD";
-import { AdminToast } from "../hooks/Toast"; // Import your Toast component
+import { AdminToast } from "../hooks/Toast";
 
-// 👇 DECLARE TYPES — NO MORE 'any'
 declare global {
   interface Window {
     google: {
@@ -58,25 +57,49 @@ interface UserProfile {
   picture?: string;
 }
 
+// Local file type (mimics DriveFile for consistency)
+interface LocalFile {
+  id: string; // We'll generate a UUID
+  name: string;
+  mimeType: string;
+  size: string; // in bytes
+  modifiedTime: string; // ISO string
+  // No webViewLink for local files
+}
+
 const INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutes
+
+// Helper to format file size
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
 
 export default function Admin() {
   const { execute, loading } = useCUD();
   const [tokenClient, setTokenClient] = useState<{
     requestAccessToken: (options?: { prompt?: string }) => void;
   } | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [files, setFiles] = useState<DriveFile[]>([]);
-  const [selectedFile, setSelectedFile] = useState<DriveFile | null>(null);
+  const [selectedFile, setSelectedFile] = useState<DriveFile | LocalFile | null>(null);
   const [showDriveContent, setShowDriveContent] = useState(false);
   const [isGapiReady, setIsGapiReady] = useState(false);
   const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' } | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
+  
+  // Track upload mode: 'drive' or 'local'
+  const [uploadMode, setUploadMode] = useState<'drive' | 'local' | null>(null);
 
   const inactivityTimer = useRef<NodeJS.Timeout | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null); // For local file upload
 
-  // 👇 HELPER TO SET TOKEN ON GAPI CLIENT
+  // Helper to set token on gapi client
   const setGapiToken = (token: string) => {
     if (window.gapi?.client) {
       window.gapi.client.setToken({
@@ -87,7 +110,7 @@ export default function Admin() {
     }
   };
 
-  // 👇 Helper function to show toast
+  // Helper to show toast
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ show: true, message, type });
     setTimeout(() => {
@@ -95,7 +118,29 @@ export default function Admin() {
     }, 3000);
   };
 
-  // 👇 LOAD GAPI + GIS
+  // List files — waits for GAPI
+  const listFiles = React.useCallback(
+    async (token: string) => {
+      if (!isGapiReady) {
+        console.warn("gapi.client not ready yet — retrying in 100ms");
+        setTimeout(() => listFiles(token), 100);
+        return;
+      }
+
+      try {
+        const res = await window.gapi.client.drive.files.list({
+          pageSize: 100,
+          fields: "files(id, name, mimeType, modifiedTime, size, webViewLink)",
+        });
+        setFiles(res.result.files || []);
+      } catch (err) {
+        console.error("Error listing files:", err);
+      }
+    },
+    [isGapiReady]
+  );
+
+  // Load GAPI + GIS
   useEffect(() => {
     const loadGapi = () => {
       window.gapi.load("client", async () => {
@@ -106,22 +151,22 @@ export default function Admin() {
     };
 
     const script = document.createElement("script");
-    script.src = "https://apis.google.com/js/api.js";
+    script.src = "https://apis.google.com/js/api.js"; // ✅ Fixed: Removed trailing space
     script.onload = loadGapi;
+    script.onerror = () => console.error("Failed to load Google API script");
     document.body.appendChild(script);
 
     const gisScript = document.createElement("script");
-    gisScript.src = "https://accounts.google.com/gsi/client";
+    gisScript.src = "https://accounts.google.com/gsi/client"; // ✅ Fixed: Removed trailing space
     gisScript.onload = () => {
       const client = window.google.accounts.oauth2.initTokenClient({
         client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-        scope: "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email",
+        scope: "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email", // ✅ Fixed: Removed extra spaces
         callback: (tokenResponse: { access_token: string }) => {
           const token = tokenResponse.access_token;
           setAccessToken(token);
           setGapiToken(token);
 
-          // Fetch user profile
           fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
             headers: { Authorization: `Bearer ${token}` },
           })
@@ -133,7 +178,6 @@ export default function Admin() {
             })
             .catch(console.warn);
 
-          // 👇 WAIT FOR GAPI BEFORE LISTING FILES
           const waitForGapi = () => {
             if (isGapiReady) {
               listFiles(token);
@@ -146,15 +190,16 @@ export default function Admin() {
       });
       setTokenClient(client);
     };
+    gisScript.onerror = () => console.error("Failed to load Google Identity Services script");
     document.body.appendChild(gisScript);
 
     return () => {
       document.body.removeChild(script);
       document.body.removeChild(gisScript);
     };
-  }, [isGapiReady]);
+  }, [isGapiReady, listFiles]);
 
-  // 👇 RESTORE ON RELOAD
+  // Restore on reload
   useEffect(() => {
     const savedToken = sessionStorage.getItem("drive_access_token");
     const savedProfile = sessionStorage.getItem("user_profile");
@@ -164,7 +209,6 @@ export default function Admin() {
       setUserProfile(JSON.parse(savedProfile));
       setGapiToken(savedToken);
 
-      // 👇 WAIT FOR GAPI BEFORE LISTING FILES
       const waitForGapi = () => {
         if (isGapiReady) {
           listFiles(savedToken);
@@ -174,36 +218,22 @@ export default function Admin() {
       };
       waitForGapi();
     }
-  }, [isGapiReady]);
+  }, [isGapiReady, listFiles]);
 
-  // 👇 LIST FILES — WAITS FOR GAPI
-  const listFiles = async (token: string) => {
-    if (!isGapiReady) {
-      console.warn("gapi.client not ready yet — retrying in 100ms");
-      setTimeout(() => listFiles(token), 100);
-      return;
-    }
-
-    try {
-      const res = await window.gapi.client.drive.files.list({
-        pageSize: 100,
-        fields: "files(id, name, mimeType, modifiedTime, size, webViewLink)",
-      });
-      setFiles(res.result.files || []);
-    } catch (err) {
-      console.error("Error listing files:", err);
-    }
-  };
-
-  // 👇 FILTER FILES BASED ON SEARCH TERM
+  // Filter files based on search term
   const filteredFiles = files.filter(file => 
     file.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     file.mimeType.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleLogin = () => {
+    console.log("handleLogin called");
+    console.log("tokenClient:", tokenClient);
     if (tokenClient) {
+      console.log("Requesting access token...");
       tokenClient.requestAccessToken();
+    } else {
+      console.warn("tokenClient not initialized yet!");
     }
   };
 
@@ -213,6 +243,7 @@ export default function Admin() {
     setFiles([]);
     setSelectedFile(null);
     setShowDriveContent(false);
+    setUploadMode(null); // Reset upload mode
 
     sessionStorage.removeItem("drive_access_token");
     sessionStorage.removeItem("user_profile");
@@ -223,7 +254,7 @@ export default function Admin() {
     }
   };
 
-  // 👇 INACTIVITY TIMER
+  // Inactivity timer
   useEffect(() => {
     if (!accessToken) return;
 
@@ -248,42 +279,65 @@ export default function Admin() {
     };
   }, [accessToken]);
 
+  // Handle local file selection
+  const handleLocalFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const fileId = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    const localFile: LocalFile = {
+      id: fileId,
+      name: file.name,
+      mimeType: file.type || 'application/octet-stream',
+      size: file.size.toString(),
+      modifiedTime: file.lastModified ? new Date(file.lastModified).toISOString() : new Date().toISOString(),
+    };
+
+    setSelectedFile(localFile);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+
+    (document.getElementById("fileDriveId") as HTMLInputElement).value = fileId;
+    (document.getElementById("fileName") as HTMLInputElement).value = file.name;
+    (document.getElementById("fileType") as HTMLInputElement).value = formatFileType({ ...localFile, webViewLink: undefined });
+    (document.getElementById("fileSize") as HTMLInputElement).value = file.size ? formatFileSize(Number(file.size)) : "Unknown";
+    (document.getElementById("fileDate") as HTMLInputElement).value = file.lastModified ? new Date(file.lastModified).toLocaleString() : new Date().toLocaleString();
+  };
+
   const handleSelectFile = (file: DriveFile) => {
     setSelectedFile(file);
 
     (document.getElementById("fileDriveId") as HTMLInputElement).value = file.id;
     (document.getElementById("fileName") as HTMLInputElement).value = file.name;
     (document.getElementById("fileType") as HTMLInputElement).value = formatFileType(file);
-    (document.getElementById("fileSize") as HTMLInputElement).value =
-      file.size ? `${(Number(file.size) / (1024 * 1024)).toFixed(2)} MB` : "Unknown";
+    (document.getElementById("fileSize") as HTMLInputElement).value = formatFileSize(Number(file.size));
     (document.getElementById("fileDate") as HTMLInputElement).value = file.modifiedTime || "";
   };
 
-  // ✅ Updated handleSubmit to use toast notifications
+  // ✅ FIXED: handleSubmit — now properly handles local file uploads
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
 
-    // Get values from form
     const drive_file_id = formData.get('fileDriveId') as string;
     const file_name = formData.get('fileName') as string;
     const file_type = formData.get('fileType') as string;
     const file_size = formData.get('fileSize') as string;
-    const modified_date = formData.get('fileDate') as string;
     const description = formData.get('fileDescription') as string;
     const category = formData.get('fileCategory') as string;
     const level = formData.get('fileLevel') as string;
     const price_usd = parseFloat(formData.get('filePrice') as string) || 0;
     const price_ngn = parseFloat(formData.get('filePriceNGN') as string) || 0;
 
-    // Validate required fields
     if (!drive_file_id || !file_name || !category || !level) {
       showToast('Please fill in all required fields', 'error');
       return;
     }
 
-    // Validate category and level
     const valid_categories = ['research', 'thesis', 'dissertation', 'assignment', 'project', 'presentation', 'other'];
     const valid_levels = ['undergraduate', 'postgraduate'];
     
@@ -297,21 +351,15 @@ export default function Admin() {
       return;
     }
 
-    // Normalize prices
     const price_usd_normalized = price_usd < 0 ? 0 : price_usd;
     const price_ngn_normalized = price_ngn < 0 ? 0 : price_ngn;
 
-    // Build price JSON
     const price = {
       usd: parseFloat(price_usd_normalized.toFixed(2)),
       ngn: parseFloat(price_ngn_normalized.toFixed(2))
     };
 
-    // Convert date format
-    const modified_datetime = new Date(modified_date).toISOString().slice(0, 19).replace('T', ' ');
-
     try {
-      // ✅ Use useCUD hook to save/update file
       const result = await execute(
         { table: 'academic_files', action: 'insert' },
         {
@@ -319,7 +367,6 @@ export default function Admin() {
           file_name,
           file_type,
           file_size,
-          modified_date: modified_datetime,
           description,
           category,
           level,
@@ -331,29 +378,50 @@ export default function Admin() {
       if (result.success) {
         showToast("File details saved successfully! Starting R2 upload...", 'success');
         
-        // ✅ Start R2 upload process
         try {
-          const uploadResponse = await fetch('/backend/admin/r2_uploader.php', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              action: 'upload_from_drive',
-              drive_file_id: drive_file_id,
-              file_name: file_name,
-              //file_id: result.data?.id || result.id
-            })
-          });
+          let uploadResponse;
+          if (selectedFile && 'id' in selectedFile && selectedFile.id.startsWith('local_')) {
+            // 👇 Use ref to get actual file — this is the FIX
+            const file = fileInputRef.current?.files?.[0];
+            
+            if (!file) {
+              throw new Error('No file selected for upload');
+            }
+
+            const uploadFormData = new FormData();
+            uploadFormData.append('action', 'upload_local_file');
+            uploadFormData.append('file', file);
+            uploadFormData.append('file_name', file_name);
+            // uploadFormData.append('file_id', result.data?.id || result.id.toString()); // Uncomment if backend requires it
+
+            uploadResponse = await fetch('/backend/admin/r2_uploader.php', {
+              method: 'POST',
+              body: uploadFormData,
+              // ⚠️ Let browser set Content-Type automatically for FormData
+            });
+          } else {
+            // Drive file — existing logic
+            uploadResponse = await fetch('/backend/admin/r2_uploader.php', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                action: 'upload_from_drive',
+                drive_file_id: drive_file_id,
+                file_name: file_name,
+                // file_id: result.data?.id || result.id
+              })
+            });
+          }
 
           const uploadResult = await uploadResponse.json();
           
           if (uploadResult.success) {
-            // ✅ Update file with R2 details
             await execute(
               { table: 'academic_files', action: 'update' },
               {
-                //id: result.data?.id || result.id,
+                id: result.inserted_id || result.file_id,
                 r2_key: uploadResult.r2_key,
                 r2_url: uploadResult.public_url,
                 r2_upload_status: 'success'
@@ -362,11 +430,10 @@ export default function Admin() {
             
             showToast("File uploaded to R2 successfully!", 'success');
           } else {
-            // ✅ Update file with failed status
             await execute(
               { table: 'academic_files', action: 'update' },
               {
-                //id: result.data?.id || result.id,
+                id: result.inserted_id || result.file_id,
                 r2_upload_status: 'failed',
                 r2_upload_error: uploadResult.error
               }
@@ -379,8 +446,12 @@ export default function Admin() {
           showToast("R2 upload failed. File details saved but upload failed.", 'error');
         }
         
+        // ✅ Reset form and selected file — but PRESERVE uploadMode
         form.reset();
         setSelectedFile(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''; // Clear file input for re-use
+        }
       } else {
         showToast(`Error saving file details: ${result.error || 'Unknown error'}`, 'error');
       }
@@ -392,7 +463,7 @@ export default function Admin() {
     }
   };
 
-  const formatFileType = (file: DriveFile): string => {
+  const formatFileType = (file: DriveFile | LocalFile): string => {
     const mimeToLabel: Record<string, string> = {
       "application/pdf": "PDF Document",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "Word Document",
@@ -436,7 +507,7 @@ export default function Admin() {
     <div className="admin-container">
       <Header/>
 
-      {/* ✅ Add Toast Container */}
+      {/* Toast Container */}
       {toast && (
         <div className="toast-container">
           <AdminToast
@@ -449,135 +520,126 @@ export default function Admin() {
       )}
 
       <div className="drive-content">
-        {!userProfile ? (
-          <div className="auth-prompt">
-            <div className="auth-card">
-              <div className="auth-icon">
-                <i className="fab fa-google-drive"></i>
-              </div>
-              <h2>Connect to Google Drive</h2>
-              <p>Sign in to access your documents and automatically fill file details</p>
-              <button onClick={handleLogin} className="btn-auth">
-                <i className="fab fa-google"></i> Sign in with Google
-              </button>
-            </div>
-          </div>
-        ) : !showDriveContent ? (
-          <div className="auth-prompt">
-            <div className="auth-card">
-              <div className="user-profile">
-                {userProfile.picture && (
-                  <img
-                    src={userProfile.picture}
-                    alt={userProfile.name}
-                    className="user-avatar"
-                    onError={(e) => {
-                      e.currentTarget.src = '/no_img.png';
-                    }}
-                  />
-                )}
-                <h3>Welcome, {userProfile.name}</h3>
-                <p>{userProfile.email}</p>
-              </div>
-              <button
-                onClick={() => setShowDriveContent(true)}
-                className="btn-view-files"
-              >
-                <i className="fas fa-folder-open"></i> View Your Drive Files
-              </button>
-
-              <button onClick={handleLogout} className="btn-logout">
-                <i className="fas fa-sign-out-alt"></i> Sign Out
-              </button>
-            </div>
-          </div>
-        ) : (
+        {/* SHOW UPLOAD UI IF showDriveContent is true — REGARDLESS OF LOGIN STATE */}
+        {showDriveContent ? (
           <div className="content-grid">
             {/* File Selection Section */}
             <div className="file-selection-section">
               <div className="section-header">
                 <h2>
-                  <i className="fab fa-google-drive"></i> Your Drive Files
+                  {uploadMode === 'local' ? (
+                    <><i className="fas fa-upload"></i> Upload File</>
+                  ) : (
+                    <><i className="fab fa-google-drive"></i> Your Drive Files</>
+                  )}
                 </h2>
-                <div className="header-actions">
-                  <div className="search-box">
-                    <i className="fas fa-search"></i>
-                    <input 
-                      type="text" 
-                      placeholder="Search files..." 
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                  <button
-                    className="btn-icon"
-                    onClick={() => {
-                      if (accessToken) {
-                        setGapiToken(accessToken);
-                        // 👇 WAIT FOR GAPI
-                        const waitForGapi = () => {
-                          if (isGapiReady) {
-                            listFiles(accessToken);
-                          } else {
-                            setTimeout(waitForGapi, 100);
-                          }
-                        };
-                        waitForGapi();
-                      }
-                    }}
-                  >
-                    <i className="fas fa-sync-alt"></i>
-                  </button>
-                </div>
-              </div>
-
-              <div className="drive-file-list">
-                {filteredFiles.length === 0 ? (
-                  <div className="no-files-found">
-                    <i className="fas fa-search"></i>
-                    <h3>No files found</h3>
-                    <p>{searchTerm ? `No files match "${searchTerm}"` : "No files available"}</p>
-                  </div>
-                ) : (
-                  filteredFiles.map((file) => (
-                    <div key={file.id} className="drive-file">
-                      <div className="file-icon">
-                        <i className="fas fa-file"></i>
-                      </div>
-                      <div className="file-details">
-                        <h3>{file.name}</h3>
-                        <div className="file-meta">
-                          <span>
-                            <i className="fas fa-calendar"></i>{" "}
-                            {file.modifiedTime
-                              ? new Date(file.modifiedTime).toLocaleDateString()
-                              : "N/A"}
-                          </span>
-                          <span>
-                            <i className="fas fa-weight-hanging"></i>{" "}
-                            {file.size
-                              ? `${(Number(file.size) / (1024 * 1024)).toFixed(2)} MB`
-                              : "Unknown"}
-                          </span>
-                          <span>
-                            <i className="fas fa-file"></i> {formatFileType(file)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="file-actions">
-                        <button className="btn-select-file" onClick={() => handleSelectFile(file)}>
-                          <i className="fas fa-check"></i> Select
-                        </button>
-                        {file.webViewLink && (
-                          <a href={file.webViewLink} target="_blank" className="btn-view">
-                            <i className="fas fa-external-link-alt"></i>
-                          </a>
-                        )}
-                      </div>
+                
+                {/* Only show header actions for Drive mode */}
+                {uploadMode === 'drive' && (
+                  <div className="header-actions">
+                    <div className="search-box">
+                      <i className="fas fa-search"></i>
+                      <input 
+                        type="text" 
+                        placeholder="Search files..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
                     </div>
-                  ))
+                    <button
+                      className="btn-icon"
+                      onClick={() => {
+                        if (accessToken) {
+                          setGapiToken(accessToken);
+                          const waitForGapi = () => {
+                            if (isGapiReady) {
+                              listFiles(accessToken);
+                            } else {
+                              setTimeout(waitForGapi, 100);
+                            }
+                          };
+                          waitForGapi();
+                        }
+                      }}
+                    >
+                      <i className="fas fa-sync-alt"></i>
+                    </button>
+                  </div>
                 )}
               </div>
+
+              {uploadMode === 'local' ? (
+                // Local file upload UI
+                <div className="drive-file-list">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleLocalFileSelect}
+                    hidden
+                    className="hidden"
+                    id="localFileInput"
+                  />
+                  <div 
+                    onClick={() => document.getElementById('localFileInput')?.click()}
+                    className="upload-file-from-device"
+                  >
+                    <div className="upload-icon">
+                      <i className="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <h3 className="upload-title">Upload File from Device</h3>
+                    <p className="upload-description">Click to select a file from your computer</p>
+                  </div>
+                </div>
+              ) : (
+                // Drive files UI
+                <div className="drive-file-list">
+                  {filteredFiles.length === 0 ? (
+                    <div className="no-files-found">
+                      <i className="fas fa-search"></i>
+                      <h3>No files found</h3>
+                      <p>{searchTerm ? `No files match "${searchTerm}"` : "No files available"}</p>
+                    </div>
+                  ) : (
+                    filteredFiles.map((file) => (
+                      <div key={file.id} className="drive-file">
+                        <div className="file-icon">
+                          <i className="fas fa-file"></i>
+                        </div>
+                        <div className="file-details">
+                          <h3>{file.name}</h3>
+                          <div className="file-meta">
+                            <span>
+                              <i className="fas fa-calendar"></i>{" "}
+                              {file.modifiedTime
+                                ? new Date(file.modifiedTime).toLocaleDateString()
+                                : "N/A"}
+                            </span>
+                            <span>
+                              <i className="fas fa-weight-hanging"></i>{" "}
+                              {file.size
+                                ? formatFileSize(Number(file.size))
+                                : "Unknown"}
+                            </span>
+                            <span>
+                              <i className="fas fa-file"></i> {formatFileType(file)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="file-actions">
+                          <button className="btn-select-file" onClick={() => handleSelectFile(file)}>
+                            <i className="fas fa-check"></i> Select
+                          </button>
+                          {file.webViewLink && (
+                            <a href={file.webViewLink} target="_blank" className="btn-view">
+                              <i className="fas fa-external-link-alt"></i>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
 
             {/* File Details Form Section */}
@@ -594,7 +656,7 @@ export default function Admin() {
                 )}
               </div>
 
-              <form className="file-details-form" onSubmit={handleSubmit}>
+              <form className="file-details-form" onSubmit={handleSubmit} ref={formRef}>
                 <input type="hidden" id="fileDriveId" name="fileDriveId" />
                 <div className="form-grid">
                   <div className="form-group">
@@ -709,13 +771,81 @@ export default function Admin() {
                   <button 
                     type="button" 
                     className="btn btn-secondary" 
-                    onClick={() => setSelectedFile(null)}
+                    onClick={() => {
+                      if (formRef.current) {
+                        formRef.current.reset();
+                      }
+                      setSelectedFile(null);
+                      // ✅ DO NOT reset uploadMode — preserve UI context
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = ''; // Clear file input
+                      }
+                    }}
                     disabled={loading}
                   >
                     <i className="fas fa-eraser"></i> Clear Form
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        ) : !userProfile ? (
+          // Auth prompt — shown only if NOT logged in AND showDriveContent is false
+          <div className="auth-prompt">
+            <div className="auth-card">
+              <div className="auth-icon">
+                <i className="fab fa-google-drive"></i>
+              </div>
+              <h2>Connect to Google Drive</h2>
+              <p>Sign in to access your documents and automatically fill file details</p>
+              <button onClick={handleLogin} className="btn-auth">
+                <i className="fab fa-google"></i> Sign in with Google
+              </button>
+              <button 
+                onClick={() => {
+                  setUploadMode('local');
+                  setShowDriveContent(true);
+                }}
+                className="btn-auth"
+                style={{ 
+                  background: 'linear-gradient(135deg, #6c757d, #5a6268)',
+                  marginTop: '1rem'
+                }}
+              >
+                <i className="fas fa-upload"></i> Upload from Device
+              </button>
+            </div>
+          </div>
+        ) : (
+          // Welcome screen — shown only if logged in AND showDriveContent is false
+          <div className="auth-prompt">
+            <div className="auth-card">
+              <div className="user-profile">
+                {userProfile.picture && (
+                  <img
+                    src={userProfile.picture}
+                    alt={userProfile.name}
+                    className="user-avatar"
+                    onError={(e) => {
+                      e.currentTarget.src = '/no_img.png';
+                    }}
+                  />
+                )}
+                <h3>Welcome, {userProfile.name}</h3>
+                <p>{userProfile.email}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setUploadMode('drive');
+                  setShowDriveContent(true);
+                }}
+                className="btn-view-files"
+              >
+                <i className="fas fa-folder-open"></i> View Your Drive Files
+              </button>
+              <button onClick={handleLogout} className="btn-logout">
+                <i className="fas fa-sign-out-alt"></i> Sign Out
+              </button>
             </div>
           </div>
         )}

@@ -17,15 +17,33 @@ export const AdminToast: React.FC<ToastProps> = ({
   duration = 5000,
   onClose,
 }) => {
+  const progressBarRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
-    const timer = setTimeout(() => {
+    // Clear any existing timer
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+
+    // Reset progress animation
+    if (progressBarRef.current) {
+      progressBarRef.current.style.animation = 'none';
+      progressBarRef.current.offsetHeight; // Trigger reflow
+      progressBarRef.current.style.animation = `toast-progress ${duration}ms linear forwards`;
+    }
+
+    // Set new timer
+    timerRef.current = setTimeout(() => {
       onClose();
     }, duration);
 
     return () => {
-      clearTimeout(timer);
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
     };
-  }, [duration, onClose]);
+  }, [duration, onClose, message, type]);
 
   const getIconClass = () => {
     switch (type) {
@@ -51,7 +69,10 @@ export const AdminToast: React.FC<ToastProps> = ({
         </button>
       </div>
       <div className="toast-progress">
-        <div className="toast-progress-bar"></div>
+        <div 
+          ref={progressBarRef} 
+          className="toast-progress-bar"
+        ></div>
       </div>
     </div>
   );
@@ -70,21 +91,32 @@ export const UserToast: React.FC<ToastProps> = ({
   onClose,
 }) => {
   const progressBarRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    // Clear any existing timer
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+
+    // Reset progress animation
+    if (progressBarRef.current) {
+      progressBarRef.current.style.animation = 'none';
+      progressBarRef.current.offsetHeight; // Trigger reflow
+      progressBarRef.current.style.animation = `toast-progress ${duration}ms linear forwards`;
+    }
+
+    // Set new timer
+    timerRef.current = setTimeout(() => {
       onClose();
     }, duration);
 
-    // ✅ Set animation duration dynamically
-    if (progressBarRef.current) {
-      progressBarRef.current.style.animationDuration = `${duration}ms`;
-    }
-
     return () => {
-      clearTimeout(timer);
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
     };
-  }, [duration, onClose]);
+  }, [duration, onClose, message, type]);
 
   const getIconClass = () => {
     switch (type) {
@@ -116,7 +148,6 @@ export const UserToast: React.FC<ToastProps> = ({
           <div 
             ref={progressBarRef} 
             className="toast-progress-bar"
-            style={{ animationDuration: `${duration}ms` }}
           ></div>
         </div>
       </div>

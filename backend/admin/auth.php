@@ -1,4 +1,4 @@
-\<?php
+<?php
 // admin/auth.php - Admin Authentication Handler
 require_once __DIR__ . '/../config.php';
 
@@ -30,8 +30,8 @@ try {
     $password = $input['password'];
     
     // Validate credentials against environment variables
-    $admin_username = $_ENV['ADMIN_USERNAME'] ?? 'admin';
-    $admin_password = $_ENV['ADMIN_PASSWORD'] ?? 'admin123';
+    $admin_username = $_ENV['ADMIN_USERNAME'];
+    $admin_password = $_ENV['ADMIN_PASSWORD'];
     
     // Verify credentials (simple comparison for now - in production, use proper password hashing)
     if ($username === $admin_username && $password === $admin_password) {
@@ -45,34 +45,31 @@ try {
             // Clean up expired sessions
             $pdo->exec("DELETE FROM admin_sessions WHERE expires_at < NOW()");
             
-            // Get admin user ID
-            $stmt = $pdo->prepare("SELECT id FROM admin_users WHERE username = ? AND is_active = TRUE");
-            $stmt->execute([$username]);
-            $admin_user = $stmt->fetch();
+            // Insert new session
+            $dt = getFormattedDateTime();
+            $expiresAt = date('Y-m-d H:i:s', strtotime('+24 hours'));
             
-            if ($admin_user) {
-                // Insert new session
-                $stmt = $pdo->prepare("
-                    INSERT INTO admin_sessions (token, admin_user_id, ip_address, user_agent) 
-                    VALUES (?, ?, ?, ?)
-                ");
-                
-                $stmt->execute([
-                    $session_token,
-                    $admin_user['id'],
-                    $_SERVER['REMOTE_ADDR'] ?? 'unknown',
-                    $_SERVER['HTTP_USER_AGENT'] ?? 'unknown'
-                ]);
-                
-                // Update last login
-                $stmt = $pdo->prepare("UPDATE admin_users SET last_login = NOW() WHERE id = ?");
-                $stmt->execute([$admin_user['id']]);
-            }
+            $stmt = $pdo->prepare("
+                INSERT INTO admin_sessions (token, username, created_at, expires_at, ip_address, user_agent) 
+                VALUES (?, ?, ?, ?, ?, ?)
+            ");
+            
+            $stmt->execute([
+                $session_token,
+                $username,
+                $dt['full'],
+                $expiresAt,
+                $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+                $_SERVER['HTTP_USER_AGENT'] ?? 'unknown'
+            ]);
             
         } catch (Exception $e) {
             error_log("Session creation error: " . $e->getMessage());
             // Continue without database session storage
         }
+        
+        // Log successful login
+        error_log("Successful admin login for username: " . $username . " from IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
         
         // Return success response
         echo json_encode([

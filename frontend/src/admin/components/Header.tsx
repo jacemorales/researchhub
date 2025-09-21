@@ -2,6 +2,7 @@
 import "../assets/admin.css";
 import "../assets/config.css";
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -28,40 +29,40 @@ const Header = () => {
 
       {/* Desktop Navigation */}
       <div className="navbar-actions desktop-nav">
-        <a href="/admin" className="nav-link">
+        <Link to="/admin" className="nav-link">
           <i className="fas fa-cloud"></i>
           <span>Drive Files</span>
-        </a>
-        <a href="/admin/settings" className="nav-link">
+        </Link>
+        <Link to="/admin/settings" className="nav-link">
           <i className="fas fa-cog"></i>
           <span>Website Config</span>
-        </a>
-        <a href="/admin/payments" className="nav-link">
+        </Link>
+        <Link to="/admin/payments" className="nav-link">
           <i className="fas fa-credit-card"></i>
           <span>Payments</span>
-        </a>
-        <a href="/user" className="btn-view-users">
+        </Link>
+        <Link to="/user" className="btn-view-users">
           <i className="fas fa-users"></i> View Users
-        </a>
+        </Link>
       </div>
 
       {/* Mobile Navigation Menu */}
       <div className={`mobile-nav ${isMenuOpen ? 'open' : ''}`}>
-        <a href="/admin" className="nav-link" onClick={() => setIsMenuOpen(false)}>
+        <Link to="/admin" className="nav-link" onClick={() => setIsMenuOpen(false)}>
           <i className="fas fa-cloud"></i>
           <span>Drive Files</span>
-        </a>
-        <a href="/admin/settings" className="nav-link" onClick={() => setIsMenuOpen(false)}>
+        </Link>
+        <Link to="/admin/settings" className="nav-link" onClick={() => setIsMenuOpen(false)}>
           <i className="fas fa-cog"></i>
           <span>Website Config</span>
-        </a>
-        <a href="/admin/payments" className="nav-link" onClick={() => setIsMenuOpen(false)}>
+        </Link>
+        <Link to="/admin/payments" className="nav-link" onClick={() => setIsMenuOpen(false)}>
           <i className="fas fa-credit-card"></i>
           <span>Payments</span>
-        </a>
-        <a href="/user" className="btn-view-users" onClick={() => setIsMenuOpen(false)}>
+        </Link>
+        <Link to="/user" className="btn-view-users" onClick={() => setIsMenuOpen(false)}>
           <i className="fas fa-users"></i> View Users
-        </a>
+        </Link>
       </div>
     </nav>
   );

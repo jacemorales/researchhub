@@ -1,7 +1,14 @@
 <?php
 // paymentStructure.php
 
+/**
+ * Get initial payment journey structure
+ */
 function getInitialPaymentJourney($email, $amount) {
+    // Use getFormattedDateTime from config.php
+    $dt = getFormattedDateTime();
+    $dtFull = $dt['full'];
+    
     return [
         'payment_journey' => [
             'initialized_payments' => [],
@@ -10,8 +17,8 @@ function getInitialPaymentJourney($email, $amount) {
             'payment_analytics' => [
                 'total_retry_attempts' => 0,
                 'unique_ips' => [],
-                'last_updated' => date('Y-m-d H:i:s'),
-                'journey_started_at' => date('Y-m-d H:i:s'),
+                'last_updated' => $dtFull,
+                'journey_started_at' => $dtFull,
                 'initial_email' => $email,
                 'initial_amount' => $amount
             ]
@@ -19,12 +26,18 @@ function getInitialPaymentJourney($email, $amount) {
     ];
 }
 
-function createLogEntry($event, $ip, $location, $details = []) {
+/**
+ * Create a log entry
+ */
+function createLogEntry($event, $ip, $details = []) {
+    // Use getFormattedDateTime from config.php
+    $dt = getFormattedDateTime();
+    $dtFull = $dt['full'];
+    
     return [
         'event' => $event,
-        'timestamp' => date('Y-m-d H:i:s'),
+        'timestamp' => $dtFull,
         'ip' => $ip,
-        'location' => $location,
         'details' => $details
     ];
 }
