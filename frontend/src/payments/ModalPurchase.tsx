@@ -3,16 +3,8 @@ import { useData } from "../hooks/useData";
 import { useCryptoPricing } from "../hooks/useCryptoPricing";
 import type { AcademicFile } from "../hooks/contexts/DataContext";
 
-// Extend window interface
-declare global {
-  interface Window {
-    retryPayment?: () => void;
-    resetToInitialState?: () => void;
-    handleWebhookResponse?: (data: WebhookData) => void;
-  }
-}
-
-interface WebhookData {
+// Handle webhook response
+interface WebhookResponseData {
   payment_status: 'success' | 'failed' | 'abandoned' | 'pending';
   reference?: string;
   data?: {
@@ -21,6 +13,15 @@ interface WebhookData {
     paid_at?: string;
     paidAt?: string;
   };
+}
+
+// Extend window interface
+declare global {
+  interface Window {
+    retryPayment?: () => void;
+    resetToInitialState?: () => void;
+    handleWebhookResponse?: (data: WebhookResponseData) => void;
+  }
 }
 
 interface ModalProps {
@@ -120,7 +121,7 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     if ((type === 'user' || (type === 'paystack' && isRetryableError)) && autoRetryCount < 3) {
       startAutoRetry();
     }
-  }, [autoRetryCount, startAutoRetry]);
+  }, [autoRetryCount]);
 
   // Initialize payment type based on currency
   useEffect(() => {
@@ -405,8 +406,9 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
         const paymentMethod = formData?.get("payment_method") as string;
         if (paymentMethod === 'paypal') {
           return `${BASE_URI}/backend/payments/dollars/paypal_integration.php`;
+        }else{
+          return `${BASE_URI}/backend/payments/dollars/stripe_integration.php`;
         }
-        return `${BASE_URI}/backend/payments/dollars/stripe_integration.php`;
       }
       case 'crypto':
         return `${BASE_URI}/backend/payments/crypto/nowpayments_integration.php`;
@@ -416,7 +418,18 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
   }, [BASE_URI, paymentType]);
 
   // Handle webhook response
-  const handleWebhookResponse = useCallback((data: WebhookData) => {
+  interface WebhookResponseData {
+    payment_status: 'success' | 'failed' | 'abandoned' | 'pending';
+    reference?: string;
+    data?: {
+      reference?: string;
+      amount?: number;
+      paid_at?: string;
+      paidAt?: string;
+    };
+  }
+
+  const handleWebhookResponse = useCallback((data: WebhookResponseData) => {
     console.log("[handleWebhookResponse] Received webhook data:", data);
     
     setIsProcessing(false);

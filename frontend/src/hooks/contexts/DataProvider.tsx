@@ -1,7 +1,9 @@
 // src/components/DataProvider.tsx
 import React, { useEffect, useState } from "react";
 import { DataContext } from "./DataContext";
-import type { WebsiteConfig, AcademicFile, Payment } from "./DataContext";
+import type { WebsiteConfig, AcademicFile, Payment, DataContextType } from "./DataContext";
+
+type UserLocation = DataContextType['user_location'];
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -9,15 +11,15 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const [website_config, setWebsiteConfig] = useState<WebsiteConfig | null>(null);
   const [academic_files, setAcademicFiles] = useState<AcademicFile[] | null>(null);
   const [payments, setPayments] = useState<Payment[] | null>(null);
-  const [user_location, setUserLocation] = useState<{ country: string; state: string; city?: string; ip?: string | null; currency: string; currency_symbol: string; api_status?: string; raw_response?: unknown; ip_type?: string } | null>(null);
+  const [user_location, setUserLocation] = useState<UserLocation>(null);
   const [currency_code, setCurrencyCode] = useState<'USD' | 'NGN'>('USD');
 
   // Check if we already have location data cached
-  const getCachedLocation = () => {
+  const getCachedLocation = (): UserLocation => {
     try {
       const cached = localStorage.getItem('research_hub_location');
       if (cached) {
-        const locationData = JSON.parse(cached);
+        const locationData = JSON.parse(cached) as { data: UserLocation; timestamp: number };
         // Cache location data for 1 hour (3600000 ms)
         if (Date.now() - locationData.timestamp < 3600000) {
           return locationData.data;
@@ -30,7 +32,8 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   // Cache location data
-  const setCachedLocation = (locationData: unknown) => {
+  const setCachedLocation = (locationData: UserLocation) => {
+    if (!locationData) return;
     try {
       localStorage.setItem('research_hub_location', JSON.stringify({
         data: locationData,

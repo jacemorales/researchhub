@@ -360,7 +360,7 @@ export default function Admin() {
     };
 
     try {
-      interface AcademicFilePayload {
+      interface AcademicFileInsertPayload {
         drive_file_id: string;
         file_name: string;
         file_type: string;
@@ -372,7 +372,7 @@ export default function Admin() {
         r2_upload_status: string;
       }
 
-      const result = await execute<AcademicFilePayload, { id: string | number }>(
+      const result = await execute<AcademicFileInsertPayload, { id: string | number }>(
         { table: 'academic_files', action: 'insert' },
         {
           drive_file_id,
@@ -392,7 +392,7 @@ export default function Admin() {
         
         try {
           let uploadResponse;
-          if (selectedFile && 'id' in selectedFile && selectedFile.id.startsWith('local_')) {
+          if (selectedFile && 'id' in selectedFile && selectedFile.id && selectedFile.id.startsWith('local_')) {
             // 👇 Use ref to get actual file — this is the FIX
             const file = fileInputRef.current?.files?.[0];
             
@@ -422,7 +422,7 @@ export default function Admin() {
                 action: 'upload_from_drive',
                 drive_file_id: drive_file_id,
                 file_name: file_name,
-                // file_id: result.data?.id || result.id
+                // file_id: result.inserted_id
               })
             });
           }
