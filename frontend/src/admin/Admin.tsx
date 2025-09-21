@@ -360,7 +360,19 @@ export default function Admin() {
     };
 
     try {
-      const result = await execute(
+      interface AcademicFilePayload {
+        drive_file_id: string;
+        file_name: string;
+        file_type: string;
+        file_size: string;
+        description: string;
+        category: string;
+        level: string;
+        price: { usd: number; ngn: number };
+        r2_upload_status: string;
+      }
+
+      const result = await execute<AcademicFilePayload, { id: string | number }>(
         { table: 'academic_files', action: 'insert' },
         {
           drive_file_id,
@@ -421,7 +433,7 @@ export default function Admin() {
             await execute(
               { table: 'academic_files', action: 'update' },
               {
-                id: result.data?.id,
+                id: result.inserted_id,
                 r2_key: uploadResult.r2_key,
                 r2_url: uploadResult.public_url,
                 r2_upload_status: 'success'
@@ -433,7 +445,7 @@ export default function Admin() {
             await execute(
               { table: 'academic_files', action: 'update' },
               {
-                id: result.inserted_id || result.file_id,
+                id: result.inserted_id,
                 r2_upload_status: 'failed',
                 r2_upload_error: uploadResult.error
               }

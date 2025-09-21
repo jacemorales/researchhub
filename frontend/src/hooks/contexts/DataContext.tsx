@@ -54,7 +54,7 @@ export interface DataContextType {
     currency: string;
     currency_symbol: string;
     api_status?: string;
-    raw_response?: any;
+    raw_response?: Record<string, unknown>;
     ip_type?: string;
   } | null;
   currency_code: 'USD' | 'NGN';

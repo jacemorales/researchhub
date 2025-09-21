@@ -6,10 +6,10 @@ interface CUDOptions {
   action: 'insert' | 'update' | 'delete';
 }
 
-interface CUDResponse {
+interface CUDResponse<T = null> {
   success: boolean;
   message?: string;
-  data?: null;
+  data?: T;
   error?: string;
   inserted_id?: number | string;
 }
@@ -21,10 +21,10 @@ export const useCUD = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const execute = async <T = null>(
+  const execute = async <P = unknown, R = null>(
     options: CUDOptions,
-    payload: T
-  ): Promise<CUDResponse> => {
+    payload: P
+  ): Promise<CUDResponse<R>> => {
     setLoading(true);
     setError(null);
     setSuccess(null);
@@ -44,7 +44,7 @@ export const useCUD = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const result: CUDResponse = await response.json();
+      const result: CUDResponse<R> = await response.json();
 
       if (result.success) {
         setSuccess(result.message || "Operation completed successfully");

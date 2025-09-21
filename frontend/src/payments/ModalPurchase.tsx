@@ -8,8 +8,19 @@ declare global {
   interface Window {
     retryPayment?: () => void;
     resetToInitialState?: () => void;
-    handleWebhookResponse?: (data: string) => void;
+    handleWebhookResponse?: (data: WebhookData) => void;
   }
+}
+
+interface WebhookData {
+  payment_status: 'success' | 'failed' | 'abandoned' | 'pending';
+  reference?: string;
+  data?: {
+    reference?: string;
+    amount?: number;
+    paid_at?: string;
+    paidAt?: string;
+  };
 }
 
 interface ModalProps {
@@ -109,7 +120,7 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     if ((type === 'user' || (type === 'paystack' && isRetryableError)) && autoRetryCount < 3) {
       startAutoRetry();
     }
-  }, [autoRetryCount]);
+  }, [autoRetryCount, startAutoRetry]);
 
   // Initialize payment type based on currency
   useEffect(() => {
@@ -389,13 +400,14 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     switch (paymentType) {
       case 'naira':
         return `${BASE_URI}/backend/payments/naira/paystack.php?action=initialize`;
-      case 'dollar':
+      case 'dollar': {
         const formData = formRef.current ? new FormData(formRef.current) : null;
         const paymentMethod = formData?.get("payment_method") as string;
         if (paymentMethod === 'paypal') {
           return `${BASE_URI}/backend/payments/dollars/paypal_integration.php`;
         }
         return `${BASE_URI}/backend/payments/dollars/stripe_integration.php`;
+      }
       case 'crypto':
         return `${BASE_URI}/backend/payments/crypto/nowpayments_integration.php`;
       default:
@@ -404,7 +416,7 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
   }, [BASE_URI, paymentType]);
 
   // Handle webhook response
-  const handleWebhookResponse = useCallback((data: any) => {
+  const handleWebhookResponse = useCallback((data: WebhookData) => {
     console.log("[handleWebhookResponse] Received webhook data:", data);
     
     setIsProcessing(false);
