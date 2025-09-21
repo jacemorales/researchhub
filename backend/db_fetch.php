@@ -1,38 +1,30 @@
 <?php
 // db_fetch.php - Fetches all data for the frontend
-// List of allowed origins
-$allowedOrigins = [
-    'http://localhost:5173',
-    'https://researchhubb.netlify.app'
-];
 
-// Get the Origin header from the request
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if (isset($_SERVER['HTTP_ORIGIN'])) {
+    // Allow only your frontend domain
+    $allowed_origins = [
+        'https://researchhubb.netlify.app',
+        'http://localhost:5173', // for local development
+        'http://127.0.0.1:5173'
+    ];
 
-// If the origin is in the allowed list, echo it back
-if (in_array($origin, $allowedOrigins)) {
-    header("Access-Control-Allow-Origin: $origin");
-} else {
-    // Optionally, deny the request or allow none
-    // header("Access-Control-Allow-Origin: null");
-    // http_response_code(403);
-    // exit;
+    if (in_array($_SERVER['HTTP_ORIGIN'], $allowed_origins)) {
+        header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
+        header("Access-Control-Allow-Credentials: true");
+        header("Content-Type: application/json");
+        header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+        header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+    }
 }
 
-// Always set these headers
-
-// Set headers for JSON response and CORS
-header("Content-Type: application/json");
-header("Access-Control-Allow-Methods: GET, OPTIONS");
-header("Access-Control-Allow-Headers: Expires, Cache-Control, Pragma, Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
-header("Access-Control-Allow-Credentials: true");
-// header("Access-Control-Allow-Origin: https://researchhubb.netlify.app");
-
-// Handle preflight requests
+// Handle preflight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
-    exit();
+    exit;
 }
+//header("Access-Control-Allow-Headers: Expires, Cache-Control, Pragma, Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
+
 
 // Include the centralized configuration
 require_once __DIR__ . '/config.php';
