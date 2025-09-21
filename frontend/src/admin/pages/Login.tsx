@@ -45,7 +45,7 @@ const AdminLogin: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('/backend/admin/auth.php', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/backend/admin/auth.php`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
