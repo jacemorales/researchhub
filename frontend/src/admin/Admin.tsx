@@ -421,7 +421,7 @@ export default function Admin() {
             await execute(
               { table: 'academic_files', action: 'update' },
               {
-                id: result.inserted_id || result.file_id,
+                id: result.data?.id,
                 r2_key: uploadResult.r2_key,
                 r2_url: uploadResult.public_url,
                 r2_upload_status: 'success'

@@ -11,6 +11,7 @@ interface CUDResponse {
   message?: string;
   data?: null;
   error?: string;
+  inserted_id?: number | string;
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;

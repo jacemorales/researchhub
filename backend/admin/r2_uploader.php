@@ -2,38 +2,65 @@
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../config.php';
 
-// Handle API requests
+// Allow CORS for frontend
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+
+// Handle preflight OPTIONS request
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+// Handle POST requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json');
-    
+
     try {
+        // Handle local file uploads (multipart/form-data)
+        if (isset($_POST['action']) && $_POST['action'] === 'upload_local_file') {
+            if (!isset($_FILES['file']) || !isset($_POST['file_name'])) {
+                throw new Exception('Missing file or file_name');
+            }
+
+            $uploader = new CloudflareR2Uploader();
+            $result = $uploader->uploadLocalFile($_FILES['file'], $_POST['file_name']);
+            echo json_encode($result);
+            exit;
+        }
+
+        // Handle JSON requests (Google Drive uploads)
         $input = json_decode(file_get_contents('php://input'), true);
-        
+
         if (!$input || !isset($input['action'])) {
             throw new Exception('Invalid request data');
         }
-        
+
         $uploader = new CloudflareR2Uploader();
-        
+
         switch ($input['action']) {
             case 'upload_from_drive':
-                if (!isset($input['drive_file_id']) || !isset($input['file_name']) || !isset($input['file_id'])) {
+                if (!isset($input['drive_file_id']) || !isset($input['file_name'])) {
                     throw new Exception('Missing required parameters');
                 }
-                
+
+                // ⚠️ Google Drive upload not implemented yet — stubbed for now
+                // You can implement this later when you set up Google OAuth
+                throw new Exception('Google Drive upload not implemented yet. Use local upload for now.');
+
+                /*
                 $result = $uploader->uploadFromGoogleDrive(
                     $input['drive_file_id'],
                     $input['file_name'],
-                    $input['file_id']
+                    $input['file_id'] ?? uniqid()
                 );
-                
-                echo json_encode($result);
-                break;
-                
+                */
+
             default:
                 throw new Exception('Unknown action');
         }
-        
+
     } catch (Exception $e) {
         http_response_code(400);
         echo json_encode([
@@ -64,7 +91,7 @@ class CloudflareR2Uploader {
             throw new Exception('R2 credentials not properly configured in .env');
         }
 
-        // Initialize AWS S3 client for R2 (compatible API)
+        // Initialize AWS S3 client for R2 (S3-compatible API)
         $this->client = new \Aws\S3\S3Client([
             'version' => 'latest',
             'region' => 'auto',
@@ -78,27 +105,38 @@ class CloudflareR2Uploader {
     }
 
     /**
-     * Download file from Google Drive and upload to R2
+     * Upload local file to R2
      */
-    public function uploadFromGoogleDrive($driveFileId, $fileName, $fileId) {
+    public function uploadLocalFile($file, $fileName) {
         try {
-            // Get Google Drive client
-            $client = getGoogleClient();
-            if (!$client->getAccessToken()) {
-                throw new Exception('Google Drive authentication required');
+            if ($file['error'] !== UPLOAD_ERR_OK) {
+                throw new Exception('File upload error: ' . $this->getUploadError($file['error']));
             }
 
-            $drive = new Google\Service\Drive($client);
-            
-            // Download file content from Google Drive
-            $fileContent = $this->downloadFromGoogleDrive($drive, $driveFileId);
-            
-            // Generate R2 key
+            $fileContent = file_get_contents($file['tmp_name']);
+            if ($fileContent === false) {
+                throw new Exception('Failed to read uploaded file');
+            }
+
+            // Generate unique R2 key (path)
+            $fileId = uniqid();
             $r2Key = $this->generateR2Key($fileName, $fileId);
-            
-            // Upload to R2
-            $result = $this->uploadToR2($r2Key, $fileContent, $fileName);
-            
+
+            // Upload to R2 with public-read ACL
+            $this->client->putObject([
+                'Bucket' => $this->bucket,
+                'Key' => $r2Key,
+                'Body' => $fileContent,
+                'ContentType' => mime_content_type($file['tmp_name']) ?: 'application/octet-stream',
+                'ContentDisposition' => 'attachment; filename="' . addslashes($fileName) . '"',
+                'ACL' => 'public-read', // 👈 Makes file accessible via pub-*.r2.dev
+                'Metadata' => [
+                    'original-filename' => $fileName,
+                    'upload-timestamp' => date('Y-m-d H:i:s'),
+                    'source' => 'local-upload'
+                ]
+            ]);
+
             return [
                 'success' => true,
                 'r2_key' => $r2Key,
@@ -107,72 +145,11 @@ class CloudflareR2Uploader {
             ];
 
         } catch (Exception $e) {
-            error_log('R2 Upload Error: ' . $e->getMessage());
+            error_log('Local Upload Error: ' . $e->getMessage());
             return [
                 'success' => false,
                 'error' => $e->getMessage()
             ];
-        }
-    }
-
-    /**
-     * Download file content from Google Drive
-     */
-    private function downloadFromGoogleDrive($drive, $fileId) {
-        try {
-            // Get file metadata first
-            $file = $drive->files->get($fileId);
-            $mimeType = $file->getMimeType();
-
-            // Handle Google Workspace files (need export)
-            if (strpos($mimeType, 'application/vnd.google-apps.') === 0) {
-                return $this->exportGoogleWorkspaceFile($drive, $fileId, $mimeType);
-            } else {
-                // Regular file download
-                $response = $drive->files->get($fileId, ['alt' => 'media']);
-                return $response->getBody()->getContents();
-            }
-        } catch (Exception $e) {
-            throw new Exception('Failed to download from Google Drive: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Export Google Workspace files (Docs, Sheets, Slides)
-     */
-    private function exportGoogleWorkspaceFile($drive, $fileId, $mimeType) {
-        $exportMimeTypes = [
-            'application/vnd.google-apps.document' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/vnd.google-apps.spreadsheet' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'application/vnd.google-apps.presentation' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        ];
-
-        $exportMimeType = $exportMimeTypes[$mimeType] ?? 'application/pdf';
-        
-        $response = $drive->files->export($fileId, $exportMimeType, ['alt' => 'media']);
-        return $response->getBody()->getContents();
-    }
-
-    /**
-     * Upload content to R2
-     */
-    private function uploadToR2($key, $content, $fileName) {
-        try {
-            $result = $this->client->putObject([
-                'Bucket' => $this->bucket,
-                'Key' => $key,
-                'Body' => $content,
-                'ContentDisposition' => 'attachment; filename="' . addslashes($fileName) . '"',
-                'Metadata' => [
-                    'original-filename' => $fileName,
-                    'upload-timestamp' => date('Y-m-d H:i:s'),
-                    'source' => 'google-drive'
-                ]
-            ]);
-
-            return $result;
-        } catch (Exception $e) {
-            throw new Exception('Failed to upload to R2: ' . $e->getMessage());
         }
     }
 
@@ -184,7 +161,7 @@ class CloudflareR2Uploader {
         $safeName = preg_replace('/[^a-zA-Z0-9_.-]/', '_', pathinfo($fileName, PATHINFO_FILENAME));
         $timestamp = date('Y/m/d');
         
-        return "files/{$timestamp}/{$fileId}_{$safeName}.{$extension}";
+        return "uploads/{$timestamp}/{$fileId}_{$safeName}.{$extension}";
     }
 
     /**
@@ -192,36 +169,26 @@ class CloudflareR2Uploader {
      */
     public function getPublicUrl($key) {
         if (!empty($this->publicUrl)) {
-            return rtrim($this->publicUrl, '/') . '/' . $key;
+            return rtrim($this->publicUrl, '/') . '/' . rawurlencode($key);
         }
         
-        // Fallback to R2 endpoint
-        return rtrim($this->endpoint, '/') . '/' . $this->bucket . '/' . $key;
+        // Fallback (not recommended for public access)
+        return rtrim($this->endpoint, '/') . '/' . $this->bucket . '/' . rawurlencode($key);
     }
 
     /**
-     * Delete file from R2
+     * Convert PHP upload error code to message
      */
-    public function deleteFile($key) {
-        try {
-            $this->client->deleteObject([
-                'Bucket' => $this->bucket,
-                'Key' => $key
-            ]);
-            return true;
-        } catch (Exception $e) {
-            error_log('R2 Delete Error: ' . $e->getMessage());
-            return false;
-        }
+    private function getUploadError($code) {
+        $errors = [
+            UPLOAD_ERR_INI_SIZE => 'The uploaded file exceeds the upload_max_filesize directive.',
+            UPLOAD_ERR_FORM_SIZE => 'The uploaded file exceeds the MAX_FILE_SIZE directive.',
+            UPLOAD_ERR_PARTIAL => 'The uploaded file was only partially uploaded.',
+            UPLOAD_ERR_NO_FILE => 'No file was uploaded.',
+            UPLOAD_ERR_NO_TMP_DIR => 'Missing a temporary folder.',
+            UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk.',
+            UPLOAD_ERR_EXTENSION => 'A PHP extension stopped the file upload.',
+        ];
+        return $errors[$code] ?? 'Unknown upload error';
     }
-}
-
-/**
- * Get Google Drive client for file operations
- * This function should be implemented based on your Google Drive authentication setup
- */
-function getGoogleClient() {
-    // This is a placeholder - you'll need to implement this based on your Google Drive auth setup
-    // For now, we'll throw an exception indicating this needs to be implemented
-    throw new Exception('Google Drive client authentication not implemented. Please configure Google Drive API access.');
 }
