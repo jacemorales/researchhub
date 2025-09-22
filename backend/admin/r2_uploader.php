@@ -38,17 +38,15 @@ try {
                 throw new Exception('Missing drive_file_id or file_name for Drive upload.');
             }
             
-            // ⚠️ Google Drive upload not implemented yet — stubbed for now
-            throw new Exception('Google Drive upload not implemented yet. Use local upload for now.');
-
-            /*
+            if (!isset($input['access_token'])) {
+                throw new Exception('Missing access_token for Drive upload.');
+            }
             $result = $uploader->uploadFromGoogleDrive(
                 $input['drive_file_id'],
                 $input['file_name'],
-                $input['file_id'] ?? uniqid()
+                $input['access_token']
             );
             echo json_encode($result);
-            */
             break;
 
         default:
@@ -97,6 +95,37 @@ class CloudflareR2Uploader {
     }
 
     /**
+     * Generic uploader for file content
+     */
+    public function uploadToR2($fileContent, $originalFileName, $mimeType, $source) {
+        // Generate unique R2 key (path)
+        $fileId = uniqid();
+        $r2Key = $this->generateR2Key($originalFileName, $fileId);
+
+        // Upload to R2 with public-read ACL
+        $this->client->putObject([
+            'Bucket' => $this->bucket,
+            'Key' => $r2Key,
+            'Body' => $fileContent,
+            'ContentType' => $mimeType,
+            'ContentDisposition' => 'attachment; filename="' . addslashes($originalFileName) . '"',
+            'ACL' => 'public-read',
+            'Metadata' => [
+                'original-filename' => $originalFileName,
+                'upload-timestamp' => date('Y-m-d H:i:s'),
+                'source' => $source
+            ]
+        ]);
+
+        return [
+            'success' => true,
+            'r2_key' => $r2Key,
+            'public_url' => $this->getPublicUrl($r2Key),
+            'size' => strlen($fileContent)
+        ];
+    }
+
+    /**
      * Upload local file to R2
      */
     public function uploadLocalFile($file, $fileName) {
@@ -109,35 +138,65 @@ class CloudflareR2Uploader {
             if ($fileContent === false) {
                 throw new Exception('Failed to read uploaded file');
             }
+            
+            $mimeType = mime_content_type($file['tmp_name']) ?: 'application/octet-stream';
 
-            // Generate unique R2 key (path)
-            $fileId = uniqid();
-            $r2Key = $this->generateR2Key($fileName, $fileId);
-
-            // Upload to R2 with public-read ACL
-            $this->client->putObject([
-                'Bucket' => $this->bucket,
-                'Key' => $r2Key,
-                'Body' => $fileContent,
-                'ContentType' => mime_content_type($file['tmp_name']) ?: 'application/octet-stream',
-                'ContentDisposition' => 'attachment; filename="' . addslashes($fileName) . '"',
-                'ACL' => 'public-read', // 👈 Makes file accessible via pub-*.r2.dev
-                'Metadata' => [
-                    'original-filename' => $fileName,
-                    'upload-timestamp' => date('Y-m-d H:i:s'),
-                    'source' => 'local-upload'
-                ]
-            ]);
-
-            return [
-                'success' => true,
-                'r2_key' => $r2Key,
-                'public_url' => $this->getPublicUrl($r2Key),
-                'size' => strlen($fileContent)
-            ];
+            return $this->uploadToR2($fileContent, $fileName, $mimeType, 'local-upload');
 
         } catch (Exception $e) {
             error_log('Local Upload Error: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Download from Google Drive and upload to R2
+     */
+    public function uploadFromGoogleDrive($driveFileId, $fileName, $accessToken) {
+        try {
+            $url = "https://www.googleapis.com/drive/v3/files/{$driveFileId}?alt=media";
+            
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                "Authorization: Bearer {$accessToken}"
+            ]);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+
+            $fileContent = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+
+            if ($httpCode !== 200) {
+                // Try to decode Google's error response
+                $errorData = json_decode($fileContent, true);
+                $message = $errorData['error']['message'] ?? $error;
+                throw new Exception("Google Drive API error ({$httpCode}): " . $message);
+            }
+
+            if ($fileContent === false) {
+                throw new Exception("Failed to download file from Google Drive. cURL error: " . $error);
+            }
+
+            // Get file metadata to determine MIME type
+            $metaUrl = "https://www.googleapis.com/drive/v3/files/{$driveFileId}?fields=mimeType";
+            $metaCh = curl_init($metaUrl);
+            curl_setopt($metaCh, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($metaCh, CURLOPT_HTTPHEADER, ["Authorization: Bearer {$accessToken}"]);
+            $metaResponse = curl_exec($metaCh);
+            curl_close($metaCh);
+            $metaData = json_decode($metaResponse, true);
+            $mimeType = $metaData['mimeType'] ?? 'application/octet-stream';
+
+            return $this->uploadToR2($fileContent, $fileName, $mimeType, 'drive-upload');
+
+        } catch (Exception $e) {
+            error_log('Drive Upload Error: ' . $e->getMessage());
             return [
                 'success' => false,
                 'error' => $e->getMessage()

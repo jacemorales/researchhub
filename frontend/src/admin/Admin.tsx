@@ -96,6 +96,9 @@ export default function Admin() {
   // Track upload mode: 'drive' or 'local'
   const [uploadMode, setUploadMode] = useState<'drive' | 'local' | null>(null);
 
+  // ✅ NEW: Store actual File object for local uploads
+  const [selectedLocalFile, setSelectedLocalFile] = useState<File | null>(null);
+
   const inactivityTimer = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null); // For local file upload
 
@@ -151,17 +154,17 @@ export default function Admin() {
     };
 
     const script = document.createElement("script");
-    script.src = "https://apis.google.com/js/api.js"; // ✅ Fixed: Removed trailing space
+    script.src = "https://apis.google.com/js/api.js";
     script.onload = loadGapi;
     script.onerror = () => console.error("Failed to load Google API script");
     document.body.appendChild(script);
 
     const gisScript = document.createElement("script");
-    gisScript.src = "https://accounts.google.com/gsi/client"; // ✅ Fixed: Removed trailing space
+    gisScript.src = "https://accounts.google.com/gsi/client";
     gisScript.onload = () => {
       const client = window.google.accounts.oauth2.initTokenClient({
         client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-        scope: "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email", // ✅ Fixed: Removed extra spaces
+        scope: "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email",
         callback: (tokenResponse: { access_token: string }) => {
           const token = tokenResponse.access_token;
           setAccessToken(token);
@@ -242,8 +245,9 @@ export default function Admin() {
     setUserProfile(null);
     setFiles([]);
     setSelectedFile(null);
+    setSelectedLocalFile(null);
     setShowDriveContent(false);
-    setUploadMode(null); // Reset upload mode
+    setUploadMode(null);
 
     sessionStorage.removeItem("drive_access_token");
     sessionStorage.removeItem("user_profile");
@@ -284,6 +288,9 @@ export default function Admin() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // ✅ CRITICAL: Save actual File object for upload
+    setSelectedLocalFile(file);
+
     const fileId = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     const localFile: LocalFile = {
@@ -317,7 +324,7 @@ export default function Admin() {
     (document.getElementById("fileDate") as HTMLInputElement).value = file.modifiedTime || "";
   };
 
-  // ✅ FIXED: handleSubmit — now properly handles local file uploads
+  // ✅ FIXED handleSubmit — uses selectedLocalFile, not fileInputRef
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
@@ -359,6 +366,12 @@ export default function Admin() {
       ngn: parseFloat(price_ngn_normalized.toFixed(2))
     };
 
+    // ✅ Validate using selectedLocalFile — source of truth
+    if (uploadMode === 'local' && !selectedLocalFile) {
+      showToast('Please select a file to upload from your device.', 'error');
+      return;
+    }
+
     try {
       interface AcademicFileInsertPayload {
         drive_file_id: string;
@@ -392,39 +405,37 @@ export default function Admin() {
         
         try {
           let uploadResponse;
-          if (selectedFile && 'id' in selectedFile && selectedFile.id && selectedFile.id.startsWith('local_')) {
-            // 👇 Use ref to get actual file — this is the FIX
-            const file = fileInputRef.current?.files?.[0];
-            
-            if (!file) {
-              throw new Error('No file selected for upload');
+
+          if (uploadMode === 'local') {
+            // ✅ USE selectedLocalFile — not fileInputRef
+            if (!selectedLocalFile) {
+              throw new Error('No local file selected for upload');
             }
 
             const uploadFormData = new FormData();
-            uploadFormData.append('action', 'upload_local_file');
-            uploadFormData.append('file', file);
+            uploadFormData.append('action', 'local_file_upload');
+            uploadFormData.append('file', selectedLocalFile);
             uploadFormData.append('file_name', file_name);
-            // uploadFormData.append('file_id', result.data?.id || result.id.toString()); // Uncomment if backend requires it
 
-            uploadResponse = await fetch('/backend/admin/r2_uploader.php', {
+            // ✅ DO NOT set Content-Type — browser handles it
+            uploadResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/backend/admin/r2_uploader.php`, {
               method: 'POST',
               body: uploadFormData,
-              // ⚠️ Let browser set Content-Type automatically for FormData
             });
-          } else {
-            // Drive file — existing logic
-            uploadResponse = await fetch('/backend/admin/r2_uploader.php', {
+          } else if (uploadMode === 'drive') {
+            uploadResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/backend/admin/r2_uploader.php?action=drive_file_upload`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                action: 'upload_from_drive',
                 drive_file_id: drive_file_id,
                 file_name: file_name,
-                // file_id: result.inserted_id
+                access_token: accessToken,
               })
             });
+          } else {
+            throw new Error('Unknown upload mode');
           }
 
           const uploadResult = await uploadResponse.json();
@@ -433,7 +444,7 @@ export default function Admin() {
             await execute(
               { table: 'academic_files', action: 'update' },
               {
-                id: result.inserted_id,
+                id: result.inserted_id || (result as { inserted_id?: string | number; file_id?: string | number }).file_id,
                 r2_key: uploadResult.r2_key,
                 r2_url: uploadResult.public_url,
                 r2_upload_status: 'success'
@@ -458,11 +469,12 @@ export default function Admin() {
           showToast("R2 upload failed. File details saved but upload failed.", 'error');
         }
         
-        // ✅ Reset form and selected file — but PRESERVE uploadMode
+        // Reset form and selected file — preserve uploadMode
         form.reset();
         setSelectedFile(null);
+        setSelectedLocalFile(null); // ✅ Clear local file state
         if (fileInputRef.current) {
-          fileInputRef.current.value = ''; // Clear file input for re-use
+          fileInputRef.current.value = '';
         }
       } else {
         showToast(`Error saving file details: ${result.error || 'Unknown error'}`, 'error');
@@ -532,7 +544,6 @@ export default function Admin() {
       )}
 
       <div className="drive-content">
-        {/* SHOW UPLOAD UI IF showDriveContent is true — REGARDLESS OF LOGIN STATE */}
         {showDriveContent ? (
           <div className="content-grid">
             {/* File Selection Section */}
@@ -546,7 +557,6 @@ export default function Admin() {
                   )}
                 </h2>
                 
-                {/* Only show header actions for Drive mode */}
                 {uploadMode === 'drive' && (
                   <div className="header-actions">
                     <div className="search-box">
@@ -592,7 +602,18 @@ export default function Admin() {
                     id="localFileInput"
                   />
                   <div 
-                    onClick={() => document.getElementById('localFileInput')?.click()}
+                    onClick={() => {
+                      // ✅ Reset before opening dialog
+                      if (formRef.current) {
+                        formRef.current.reset();
+                      }
+                      setSelectedFile(null);
+                      setSelectedLocalFile(null);
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                      }
+                      document.getElementById('localFileInput')?.click();
+                    }}
                     className="upload-file-from-device"
                   >
                     <div className="upload-icon">
@@ -772,7 +793,7 @@ export default function Admin() {
                   <button 
                     type="submit" 
                     className="btn btn-primary"
-                    disabled={loading}
+                    disabled={loading || (uploadMode === 'local' && !selectedLocalFile)}
                   >
                     {loading ? (
                       <><i className="fas fa-spinner fa-spin"></i> Saving...</>
@@ -788,9 +809,9 @@ export default function Admin() {
                         formRef.current.reset();
                       }
                       setSelectedFile(null);
-                      // ✅ DO NOT reset uploadMode — preserve UI context
+                      setSelectedLocalFile(null);
                       if (fileInputRef.current) {
-                        fileInputRef.current.value = ''; // Clear file input
+                        fileInputRef.current.value = '';
                       }
                     }}
                     disabled={loading}
@@ -802,7 +823,6 @@ export default function Admin() {
             </div>
           </div>
         ) : !userProfile ? (
-          // Auth prompt — shown only if NOT logged in AND showDriveContent is false
           <div className="auth-prompt">
             <div className="auth-card">
               <div className="auth-icon">
@@ -829,7 +849,6 @@ export default function Admin() {
             </div>
           </div>
         ) : (
-          // Welcome screen — shown only if logged in AND showDriveContent is false
           <div className="auth-prompt">
             <div className="auth-card welcome-card">
               <div className="user-profile">

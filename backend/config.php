@@ -4,7 +4,10 @@
 // Set CORS headers
 $allowedOrigins = [
     'http://localhost:5173',
-    'https://researchhubb.netlify.app'
+    'https://researchhubb.netlify.app',
+    'https://httpbin.org/ip',
+'https://icanhazip.com',
+'https://api.ipify.org?format=json'
 ];
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 if (in_array($origin, $allowedOrigins)) {
@@ -46,6 +49,10 @@ define('PAYSTACK_SECRET', $_ENV['PAYSTACK_SECRET']);
 define('STRIPE_PUBLISHABLE_KEY', $_ENV['STRIPE_PUBLISHABLE_KEY']);
 define('STRIPE_SECRET_KEY', $_ENV['STRIPE_SECRET_KEY']);
 define('STRIPE_WEBHOOK_SECRET', $_ENV['STRIPE_WEBHOOK_SECRET']);
+
+define('PAYPAL_CLIENT_ID', $_ENV['PAYPAL_CLIENT_ID'] ?? '');
+define('PAYPAL_CLIENT_SECRET', $_ENV['PAYPAL_CLIENT_SECRET'] ?? '');
+define('PAYPAL_MODE', $_ENV['PAYPAL_MODE'] ?? 'sandbox'); // 'sandbox' or 'live'
 
 define('NOWPAYMENTS_API_KEY', $_ENV['NOWPAYMENTS_API_KEY']);
 define('NOWPAYMENTS_IPN_SECRET', $_ENV['NOWPAYMENTS_IPN_SECRET']);

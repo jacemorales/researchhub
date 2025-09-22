@@ -154,14 +154,9 @@ function handleInitialize() {
             global $pdo;
             $updatePlatformRef = $pdo->prepare("UPDATE payments SET current_platform_reference = ?, updated_at = ? WHERE reference = ?");
             $updatePlatformRef->execute([$platformRef, $dtFull, $masterRef]);
-            
-            $appendSuccess = appendNewPaymentAttempt($masterRef, $platformRef, $email, $finalAmountNaira);
-            if (!$appendSuccess) {
-                throw new Exception('Failed to append payment attempt');
-            }
         } else {
             // This is a new payment - create new record
-            $paymentRecord = createPaymentRow($driveFileId, $customerName, $email, $customerPhone, $finalAmountNaira, $masterRef, $platformRef);
+            $paymentRecord = createPaymentRow($driveFileId, $customerName, $email, $customerPhone, $finalAmountNaira, $masterRef, $platformRef, 'paystack', 'NGN');
             if (!$paymentRecord) {
                 throw new Exception('Failed to create payment record');
             }
@@ -382,14 +377,19 @@ function handleVerify() {
             ];
 
             // Send to frontend via JavaScript postMessage
+            $targetOrigin = '*'; // Use a specific origin in production for security
             echo '<script>
-                if (window.opener && window.opener.handleWebhookResponse) {
-                    window.opener.handleWebhookResponse(' . json_encode($webhookData) . ');
+                const message = {
+                    type: "payment_response",
+                    payload: ' . json_encode($webhookData) . '
+                };
+                if (window.opener) {
+                    window.opener.postMessage(message, ' . json_encode($targetOrigin) . ');
                     window.close();
-                } else if (parent && parent.handleWebhookResponse) {
-                    parent.handleWebhookResponse(' . json_encode($webhookData) . ');
+                } else if (parent) {
+                    parent.postMessage(message, ' . json_encode($targetOrigin) . ');
                 } else {
-                    console.log("Payment result:", ' . json_encode($webhookData) . ');
+                    console.log("Payment result (no opener/parent to post message to):", message);
                 }
             </script>';
 
@@ -416,14 +416,19 @@ function handleVerify() {
                 ]
             ];
 
+            $targetOrigin = '*'; // Use a specific origin in production for security
             echo '<script>
-                if (window.opener && window.opener.handleWebhookResponse) {
-                    window.opener.handleWebhookResponse(' . json_encode($webhookData) . ');
+                const message = {
+                    type: "payment_response",
+                    payload: ' . json_encode($webhookData) . '
+                };
+                if (window.opener) {
+                    window.opener.postMessage(message, ' . json_encode($targetOrigin) . ');
                     window.close();
-                } else if (parent && parent.handleWebhookResponse) {
-                    parent.handleWebhookResponse(' . json_encode($webhookData) . ');
+                } else if (parent) {
+                    parent.postMessage(message, ' . json_encode($targetOrigin) . ');
                 } else {
-                    console.log("Payment error:", ' . json_encode($webhookData) . ');
+                    console.log("Payment error (no opener/parent to post message to):", message);
                 }
             </script>';
         }
@@ -441,283 +446,24 @@ function handleVerify() {
             ]
         ];
 
+        $targetOrigin = '*'; // Use a specific origin in production for security
         echo '<script>
-            if (window.opener && window.opener.handleWebhookResponse) {
-                window.opener.handleWebhookResponse(' . json_encode($webhookData) . ');
+            const message = {
+                type: "payment_response",
+                payload: ' . json_encode($webhookData) . '
+            };
+            if (window.opener) {
+                window.opener.postMessage(message, ' . json_encode($targetOrigin) . ');
                 window.close();
-            } else if (parent && parent.handleWebhookResponse) {
-                parent.handleWebhookResponse(' . json_encode($webhookData) . ');
+            } else if (parent) {
+                parent.postMessage(message, ' . json_encode($targetOrigin) . ');
             } else {
-                console.log("Payment error:", ' . json_encode($webhookData) . ');
+                console.log("Payment error (no opener/parent to post message to):", message);
             }
         </script>';
     }
 }
 
-/**
- * Get client information including device and user agent
- */
-function getClientInfo() {
-    $ua = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
-    $device = (stripos($ua, 'mobile') !== false || stripos($ua, 'android') !== false || stripos($ua, 'iphone') !== false) ? 'Mobile' : 'Desktop';
-    
-    // Simple IP detection without validation
-    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-
-    return compact('device', 'ua', 'ip');
-}
-
-/**
- * Create a new payment row in the database (first attempt)
- */
-function createPaymentRow($driveFileId, $customerName, $customerEmail, $customerPhone, $amountNaira, $masterReference, $platformReference = null) {
-    global $pdo;
-    
-    if (!$pdo) {
-        error_log("Database not available for payment row creation");
-        return false;
-    }
-
-    try {
-        // Use getFormattedDateTime from config.php
-        $dt = getFormattedDateTime();
-        $dtFull = $dt['full'];
-        
-        $client = getClientInfo();
-        $amountStr = number_format($amountNaira, 2, '.', '');
-
-        $journey = getInitialPaymentJourney($customerEmail, $amountNaira);
-        $journey['payment_journey']['payment_analytics']['unique_ips'][] = $client['ip'];
-        $journey['payment_journey']['initialized_payments'][] = [
-            'platform_reference' => $platformReference,
-            'paystack_reference' => $platformReference, // ← Backward compatibility
-            'amount' => $amountNaira,
-            'email' => $customerEmail,
-            'started_at' => $dtFull,
-            'device' => $client['device'],
-            'initial_ip' => $client['ip'],
-            'logs' => [
-                createLogEntry('first_attempt', $client['ip'], [
-                    'platform_reference' => $platformReference,
-                    'timestamp' => $dtFull
-                ])
-            ]
-        ];
-
-        $stmt = $pdo->prepare("
-            INSERT INTO payments (
-                drive_file_id, customer_name, customer_email, customer_phone, amount, currency, payment_method,
-                reference, current_platform_reference, payment_status, admin_status, 
-                started_at, completed_at, transaction_logs, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ");
-
-        $success = $stmt->execute([
-            $driveFileId,
-            $customerName,
-            $customerEmail,
-            $customerPhone,
-            $amountStr,
-            'NGN',
-            'paystack',
-            $masterReference,                     // ← reference
-            $platformReference,                   // ← current_platform_reference
-            'pending',
-            'pending',
-            $dtFull,
-            null,
-            json_encode($journey, JSON_UNESCAPED_UNICODE),
-            $dtFull
-        ]);
-
-        if (!$success) {
-            error_log("Failed to insert payment record");
-            return false;
-        }
-
-        $id = $pdo->lastInsertId();
-        $select = $pdo->prepare("SELECT * FROM payments WHERE id = ? LIMIT 1");
-        $select->execute([$id]);
-        
-        return $select->fetch();
-        
-    } catch (Throwable $e) {
-        error_log("Error in createPaymentRow: " . $e->getMessage());
-        return false;
-    }
-}
-
-/**
- * Append a new payment attempt to existing payment record
- */
-function appendNewPaymentAttempt($masterReference, $platformReference, $customerEmail, $amountNaira) {
-    global $pdo;
-    
-    if (!$pdo) {
-        error_log("Database not available for appending payment attempt");
-        return false;
-    }
-
-    try {
-        $stmt = $pdo->prepare("SELECT transaction_logs FROM payments WHERE reference = ? LIMIT 1");
-        $stmt->execute([$masterReference]);
-        $row = $stmt->fetch();
-
-        if (!$row) {
-            error_log("Cannot append attempt — payment record not found for reference: {$masterReference}");
-            return false;
-        }
-
-        $journey = json_decode($row['transaction_logs'], true);
-        if (!is_array($journey)) {
-            error_log("Invalid transaction logs for reference: {$masterReference}");
-            return false;
-        }
-
-        // Use getFormattedDateTime from config.php
-        $dt = getFormattedDateTime();
-        $dtFull = $dt['full'];
-        
-        $client = getClientInfo();
-
-        // Add new payment attempt
-        $journey['payment_journey']['initialized_payments'][] = [
-            'platform_reference' => $platformReference,
-            'paystack_reference' => $platformReference, // ← For backward compatibility
-            'amount' => $amountNaira,
-            'email' => $customerEmail,
-            'started_at' => $dtFull,
-            'device' => $client['device'],
-            'initial_ip' => $client['ip'],
-            'logs' => [
-                createLogEntry('retry_attempt', $client['ip'], [
-                    'platform_reference' => $platformReference,
-                    'timestamp' => $dtFull
-                ])
-            ]
-        ];
-
-        // Update last_updated
-        $journey['payment_journey']['payment_analytics']['last_updated'] = $dtFull;
-        // Add IP to unique_ips if not already present
-        if (!in_array($client['ip'], $journey['payment_journey']['payment_analytics']['unique_ips'])) {
-            $journey['payment_journey']['payment_analytics']['unique_ips'][] = $client['ip'];
-        }
-
-        // Update DB
-        $update = $pdo->prepare("UPDATE payments SET transaction_logs = ?, updated_at = ? WHERE reference = ?");
-        return $update->execute([json_encode($journey, JSON_UNESCAPED_UNICODE), $dtFull, $masterReference]);
-        
-    } catch (Throwable $e) {
-        error_log("Error in appendNewPaymentAttempt: " . $e->getMessage());
-        return false;
-    }
-}
-
-/**
- * Append log entry and update payment status
- */
-function appendLogAndUpdateStatus($masterReference, $status, $gatewayResponse = '', $skipGeo = true) {
-    global $pdo;
-    
-    if (!$pdo) {
-        error_log("Database not available for status update");
-        return false;
-    }
-
-    try {
-        $stmt = $pdo->prepare("SELECT transaction_logs FROM payments WHERE reference = ? LIMIT 1");
-        $stmt->execute([$masterReference]);
-        $row = $stmt->fetch();
-
-        if (!$row) {
-            error_log("Payment record not found for reference: {$masterReference}");
-            return false;
-        }
-
-        $journey = json_decode($row['transaction_logs'], true);
-        if (!is_array($journey)) {
-            error_log("Invalid transaction logs JSON for reference: {$masterReference}");
-            return false;
-        }
-
-        // Use getFormattedDateTime from config.php
-        $dt = getFormattedDateTime();
-        $dtFull = $dt['full'];
-        
-        $client = getClientInfo();
-
-        $logEntry = createLogEntry('status_update', $client['ip'], [
-            'status' => $status,
-            'gateway_response' => is_string($gatewayResponse) ? $gatewayResponse : json_encode($gatewayResponse),
-            'timestamp' => $dtFull
-        ]);
-
-        $payments = &$journey['payment_journey']['initialized_payments'];
-        if (count($payments) > 0) {
-            $payments[count($payments)-1]['logs'][] = $logEntry;
-        }
-
-        $journey['payment_journey']['payment_analytics']['last_updated'] = $dtFull;
-
-        if ($status === 'success') {
-            $journey['payment_journey']['successful_payment'] = [
-                'platform_reference' => $payments[count($payments)-1]['platform_reference'] ?? null,
-                'completed_at' => $dtFull,
-                'final_amount' => $payments[count($payments)-1]['amount'] ?? 0
-            ];
-        }
-
-        // Update payment record
-        $update = $pdo->prepare("UPDATE payments SET transaction_logs = ?, payment_status = ?, updated_at = ? WHERE reference = ?");
-        $updateSuccess = $update->execute([json_encode($journey, JSON_UNESCAPED_UNICODE), $status, $dtFull, $masterReference]);
-
-        // If success, also set completed_at
-        if ($status === 'success') {
-            $updateCompleted = $pdo->prepare("UPDATE payments SET completed_at = ? WHERE reference = ? AND completed_at IS NULL");
-            $updateCompleted->execute([$dtFull, $masterReference]);
-        }
-
-        return $updateSuccess;
-        
-    } catch (Throwable $e) {
-        error_log("Error in appendLogAndUpdateStatus: " . $e->getMessage());
-        return false;
-    }
-}
-
-/**
- * Get payment record by reference
- */
-function getPaymentByReference($reference) {
-    global $pdo;
-    
-    if (!$pdo) {
-        error_log("❌ getPaymentByReference: PDO not initialized");
-        return false;
-    }
-    
-    try {
-        error_log("🔍 getPaymentByReference called with reference: " . $reference);
-        
-        $stmt = $pdo->prepare("SELECT * FROM payments WHERE reference = ? LIMIT 1");
-        $stmt->execute([$reference]);
-        
-        $result = $stmt->fetch();
-        
-        if ($result) {
-            error_log("✅ FOUND payment record for reference: " . $reference);
-        } else {
-            error_log("❌ NO RECORD found for reference: " . $reference);
-        }
-        
-        return $result;
-        
-    } catch (Throwable $e) {
-        error_log("🔥 ERROR in getPaymentByReference: " . $e->getMessage());
-        return false;
-    }
-}
 
 /**
  * Send receipt email request to mail service

@@ -1773,6 +1773,8 @@ nav a:hover::after {
   color: #ef6c00;
 }
 
+.error-state.stripe,
+.error-state.nowpayments,
 .error-state.paystack {
   background: linear-gradient(135deg,#ffebee,#ffcdd2);
   border: 2px solid #f44336;
