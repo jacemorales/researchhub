@@ -2,14 +2,21 @@
 import "../assets/admin.css";
 import "../assets/config.css";
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const location = useLocation();
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
+
+  const navLinks = [
+    { to: "/admin", icon: "fas fa-cloud", text: "Drive Files" },
+    { to: "/admin/settings", icon: "fas fa-cog", text: "Website Config" },
+    { to: "/admin/payments", icon: "fas fa-credit-card", text: "Payments" },
+  ];
 
   return (
     <nav className="admin-navbar">
@@ -18,7 +25,26 @@ const Header = () => {
         <span>Research Hub Admin</span>
       </div>
       
-      {/* Mobile Menu Button */}
+      <div className="navbar-center desktop-nav">
+        {navLinks.map(link => (
+          <Link 
+            key={link.to} 
+            to={link.to} 
+            className={`nav-link ${location.pathname === link.to ? 'active' : ''}`}
+          >
+            <i className={link.icon}></i>
+            <span>{link.text}</span>
+          </Link>
+        ))}
+      </div>
+
+      <div className="navbar-actions desktop-nav">
+        <Link to="/user" className="btn-view-users">
+          <i className="fas fa-users"></i>
+          <span>View Site</span>
+        </Link>
+      </div>
+
       <button 
         className="mobile-menu-toggle" 
         onClick={toggleMenu}
@@ -27,42 +53,27 @@ const Header = () => {
         <i className={`fas ${isMenuOpen ? 'fa-times' : 'fa-bars'}`}></i>
       </button>
 
-      {/* Desktop Navigation */}
-      <div className="navbar-actions desktop-nav">
-        <Link to="/admin" className="nav-link">
-          <i className="fas fa-cloud"></i>
-          <span>Drive Files</span>
-        </Link>
-        <Link to="/admin/settings" className="nav-link">
-          <i className="fas fa-cog"></i>
-          <span>Website Config</span>
-        </Link>
-        <Link to="/admin/payments" className="nav-link">
-          <i className="fas fa-credit-card"></i>
-          <span>Payments</span>
-        </Link>
-        <Link to="/user" className="btn-view-users">
-          <i className="fas fa-users"></i> View Users
-        </Link>
-      </div>
-
-      {/* Mobile Navigation Menu */}
       <div className={`mobile-nav ${isMenuOpen ? 'open' : ''}`}>
-        <Link to="/admin" className="nav-link" onClick={() => setIsMenuOpen(false)}>
-          <i className="fas fa-cloud"></i>
-          <span>Drive Files</span>
-        </Link>
-        <Link to="/admin/settings" className="nav-link" onClick={() => setIsMenuOpen(false)}>
-          <i className="fas fa-cog"></i>
-          <span>Website Config</span>
-        </Link>
-        <Link to="/admin/payments" className="nav-link" onClick={() => setIsMenuOpen(false)}>
-          <i className="fas fa-credit-card"></i>
-          <span>Payments</span>
-        </Link>
-        <Link to="/user" className="btn-view-users" onClick={() => setIsMenuOpen(false)}>
-          <i className="fas fa-users"></i> View Users
-        </Link>
+        <ul>
+          {navLinks.map(link => (
+            <li key={link.to}>
+              <Link 
+                to={link.to} 
+                className={`nav-link ${location.pathname === link.to ? 'active' : ''}`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <i className={link.icon}></i>
+                <span>{link.text}</span>
+              </Link>
+            </li>
+          ))}
+          <li>
+            <Link to="/user" className="nav-link" onClick={() => setIsMenuOpen(false)}>
+              <i className="fas fa-users"></i>
+              <span>View Site</span>
+            </Link>
+          </li>
+        </ul>
       </div>
     </nav>
   );

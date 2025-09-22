@@ -6,6 +6,7 @@ import { useMail } from '../../hooks/useMail';
 import type { Payment, AcademicFile } from '../../hooks/contexts/DataContext';
 import { AdminToast } from '../../hooks/Toast';
 import Header from '../components/Header';
+import Loading from '../../hooks/Loading';
 
 // Define types for stats
 interface CurrencyStats {
@@ -126,7 +127,7 @@ const Payments: React.FC = () => {
             } else {
                 setToast({ message: result.error || "Failed to send file email", type: 'error' });
             }
-        } catch (error) {
+        } catch {
             setToast({ message: "Failed to send file email", type: 'error' });
         }
     }, [selectedPayment, fileLink, linkExpires, getFileInfoByDriveFileId, sendMail]);
@@ -202,7 +203,7 @@ const Payments: React.FC = () => {
     }, []);
 
     // Helper: Filter transaction logs for meaningful data
-    const getFilteredLogs = useCallback((logs: any) => {
+    const getFilteredLogs = useCallback((logs?: any) => {
         if (typeof logs === 'string') {
             return logs;
         }
@@ -397,7 +398,7 @@ const Payments: React.FC = () => {
             } else {
                 showToast(result.error || 'Failed to update payment status.', 'error');
             }
-        } catch (error) {
+        } catch {
             showToast('Failed to update payment status.', 'error');
         }
     }, [execute, showToast]);
@@ -416,13 +417,7 @@ const Payments: React.FC = () => {
         setSelectedPayment(null);
     }, []);
 
-    if (!payments) {
-        return (
-            <div className="loading">
-                <i className="fas fa-spinner fa-spin"></i> Loading payments...
-            </div>
-        );
-    }
+    if (!payments) {return (<Loading />);}
 
     return (
         <>

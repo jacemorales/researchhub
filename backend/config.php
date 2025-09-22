@@ -1,6 +1,16 @@
 <?php
 // config.php - Centralized Configuration & Connection
 
+// Set CORS headers
+$allowedOrigins = [
+    'http://localhost:5173',
+    'https://researchhubb.netlify.app'
+];
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if (in_array($origin, $allowedOrigins)) {
+    header("Access-Control-Allow-Origin: $origin");
+}
+
 // Load Composer's autoloader
 require_once __DIR__ . '/vendor/autoload.php';
 

@@ -831,7 +831,7 @@ export default function Admin() {
         ) : (
           // Welcome screen — shown only if logged in AND showDriveContent is false
           <div className="auth-prompt">
-            <div className="auth-card">
+            <div className="auth-card welcome-card">
               <div className="user-profile">
                 {userProfile.picture && (
                   <img
@@ -846,18 +846,29 @@ export default function Admin() {
                 <h3>Welcome, {userProfile.name}</h3>
                 <p>{userProfile.email}</p>
               </div>
-              <button
-                onClick={() => {
-                  setUploadMode('drive');
-                  setShowDriveContent(true);
-                }}
-                className="btn-view-files"
-              >
-                <i className="fas fa-folder-open"></i> View Your Drive Files
-              </button>
-              <button onClick={handleLogout} className="btn-logout">
-                <i className="fas fa-sign-out-alt"></i> Sign Out
-              </button>
+              <div className="welcome-actions">
+                <button
+                  onClick={() => {
+                    setUploadMode('drive');
+                    setShowDriveContent(true);
+                  }}
+                  className="btn btn-primary"
+                >
+                  <i className="fab fa-google-drive"></i> View Drive Files
+                </button>
+                <button
+                  onClick={() => {
+                    setUploadMode('local');
+                    setShowDriveContent(true);
+                  }}
+                  className="btn btn-secondary"
+                >
+                  <i className="fas fa-upload"></i> Upload From Device
+                </button>
+                <button onClick={handleLogout} className="btn btn-danger">
+                  <i className="fas fa-sign-out-alt"></i> Sign Out
+                </button>
+              </div>
             </div>
           </div>
         )}

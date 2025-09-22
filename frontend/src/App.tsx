@@ -14,7 +14,8 @@ const Settings = lazy(() => import("./admin/pages/Settings"));
 const Payments = lazy(() => import("./admin/pages/Payments"));
 
 
-const Loading = () => <div>Loading...</div>;
+
+import Loading from './hooks/Loading';
 
 const AppRoutes = () => {
   return (

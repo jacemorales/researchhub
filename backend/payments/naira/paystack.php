@@ -23,7 +23,6 @@ if (in_array($origin, $allowedOrigins)) {
 
 header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, Cache-Control');
-header('Content-Type: application/json');
 
 // Handle preflight requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -81,6 +80,7 @@ exit;
 function handleInitialize() {
     // Only allow POST requests for payment initialization
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        header('Content-Type: application/json');
         http_response_code(405);
         echo json_encode([
             'status' => 'error',
@@ -89,6 +89,7 @@ function handleInitialize() {
         return;
     }
 
+    header('Content-Type: application/json');
     try {
         // Get JSON input
         $rawInput = file_get_contents('php://input');

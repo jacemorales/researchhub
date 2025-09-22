@@ -1,5 +1,24 @@
 {
+    "name": "yourname/research-hub",
+    "description": "Academic file management system",
+    "type": "project",
+    "license": "MIT",
     "require": {
-    "aws/aws-sdk-php": "^3.0"
-}
+        "aws/aws-sdk-php": "*",
+        "vlucas/phpdotenv": "*",
+        "phpmailer/phpmailer": "*",
+        "yabacon/paystack-php": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
+    "config": {
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "optimize-autoloader": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
 }

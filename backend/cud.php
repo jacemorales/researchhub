@@ -9,7 +9,7 @@ $allowedOrigins = [
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 if (in_array($origin, $allowedOrigins)) {
     header("Access-Control-Allow-Origin: $origin");
-} 
+}
 // Set headers for JSON response and CORS
 header("Content-Type: application/json");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
