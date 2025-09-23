@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useData } from "../../hooks/useData";
 import { useCUD } from "../../hooks/useCUD";
 
-interface ModalProps {onClose: () => void;}
+interface ModalProps { onClose: () => void; }
 
 const ModalContact = ({ onClose }: ModalProps) => {
   const { website_config } = useData();
@@ -20,7 +20,7 @@ const ModalContact = ({ onClose }: ModalProps) => {
 
     const form = e.currentTarget;
     const formData = new FormData(form);
-    
+
     const contactData = {
       contact_name: formData.get("contact_name") as string,
       contact_email: formData.get("contact_email") as string,
@@ -67,10 +67,12 @@ const ModalContact = ({ onClose }: ModalProps) => {
   return (
     <div className="modal" id="contactModal">
       <div className="modal-content">
-        <span className="close-modal" data-modal="contactModal" onClick={onClose}>&times;</span>
 
         <div className="modal-header">
-          <h2 className="modal-title">{website_config?.CONTACT_TITLE}</h2>
+          <div className="flex reverse">
+            <span className="close-modal" data-modal="contactModal" onClick={onClose}>&times;</span>
+            <h2 className="modal-title">{website_config?.CONTACT_TITLE}</h2>
+          </div>
           <p className="modal-subtitle">{website_config?.CONTACT_SUBTITLE}</p>
         </div>
 

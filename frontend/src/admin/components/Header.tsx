@@ -39,7 +39,7 @@ const Header = () => {
       </div>
 
       <div className="navbar-actions desktop-nav">
-        <Link to="/user" className="btn-view-users">
+        <Link to="/user" className="btn view-users">
           <i className="fas fa-users"></i>
           <span>View Site</span>
         </Link>

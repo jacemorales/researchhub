@@ -9,11 +9,13 @@ const ModalPreview = ({ onClose, data }: ModalProps) => {
   return (
     <div className="modal" id="previewModal">
       <div className="modal-content">
-        <span className="close-modal" data-modal="previewModal" onClick={onClose} >&times;</span>
 
         <div className="modal-header">
-          <h2 className="modal-title" id="previewTitle">{data?.file_name}</h2>
-          <p className="modal-subtitle">Preview academic resource details</p>
+          <div className="flex reverse">
+            <span className="close-modal" data-modal="previewModal" onClick={onClose} >&times;</span>
+            <h2 className="modal-title" id="previewTitle">{data?.file_name}</h2>
+          </div>
+            <p className="modal-subtitle">Preview academic resource details</p>
         </div>
 
         <div className="modal-body">

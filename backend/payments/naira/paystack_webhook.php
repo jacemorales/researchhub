@@ -254,7 +254,7 @@ function sendReceiptEmailRequest($toEmail, $reference, $amountNaira) {
         // Build the full URL to send_mail.php
         $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https://' : 'http://';
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        $mailUrl = $protocol . $host . '/send_mail.php?mail=receipt';
+        //$mailUrl = $protocol . $host . '/send_mail.php?mail=receipt';
 
         // Send POST request to mail service
         $ch = curl_init();

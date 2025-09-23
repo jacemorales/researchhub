@@ -489,7 +489,7 @@ useEffect(() => {
                                 <div className="category-header">
                                     <h2><i className={`fas fa-${getCategoryIcon(category)}`}></i> {categoryName}</h2>
                                     <button
-                                        className="btn-edit-category"
+                                        className="btn btn-edit-category"
                                         onClick={() => openCategoryModal(category)}
                                     >
                                         <i className="fas fa-edit"></i> Edit All
@@ -510,7 +510,7 @@ useEffect(() => {
                                             </div>
                                             <div className="config-actions">
                                                 <button
-                                                    className="btn-edit-item"
+                                                    className="btn btn-edit-item"
                                                     onClick={() => openEditModal(config.config_key)}
                                                 >
                                                     <i className="fas fa-edit"></i> Edit

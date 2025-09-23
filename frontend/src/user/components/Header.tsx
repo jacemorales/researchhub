@@ -37,7 +37,7 @@ const Header = () => {
     <>
       <header>
         <div className="logo">
-            <i className="fas fa-book-open logo-icon" />
+            <i className="fas fa-graduation-cap logo-icon" />
           <div className="logo-text">
             <h1>{website_config?.SITE_NAME}</h1>
             <p>{website_config?.SITE_DESC}</p>

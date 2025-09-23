@@ -1,5 +1,5 @@
 import { useData } from "../../hooks/useData";
-interface ModalProps {onClose: () => void;}
+interface ModalProps { onClose: () => void; }
 
 const ModalBlog = ({ onClose }: ModalProps) => {
   const { website_config } = useData();
@@ -7,10 +7,12 @@ const ModalBlog = ({ onClose }: ModalProps) => {
   return (
     <div className="modal" id="blogModal">
       <div className="modal-content">
-        <span className="close-modal" onClick={onClose}>×</span>
 
         <div className="modal-header">
-          <h2 className="modal-title">{website_config?.BLOG_TITLE}</h2>
+          <div className="flex reverse" style={{columnGap: 5}}>
+            <span className="close-modal" onClick={onClose}>×</span>
+            <h2 className="modal-title">{website_config?.BLOG_TITLE}</h2>
+          </div>
           <p className="modal-subtitle">{website_config?.BLOG_DESCRIPTION}</p>
         </div>
 
@@ -20,9 +22,9 @@ const ModalBlog = ({ onClose }: ModalProps) => {
 
           <div className="blog-grid">
             <div className="blog-card">
-              <img 
-                src={website_config?.BLOG_ARTICLE_1_IMG} 
-                alt={website_config?.BLOG_ARTICLE_1_TITLE} 
+              <img
+                src={website_config?.BLOG_ARTICLE_1_IMG}
+                alt={website_config?.BLOG_ARTICLE_1_TITLE}
                 className="blog-img"
                 onError={(e) => {
                   e.currentTarget.src = '/no_img.png';
@@ -40,9 +42,9 @@ const ModalBlog = ({ onClose }: ModalProps) => {
             </div>
 
             <div className="blog-card">
-              <img 
-                src={website_config?.BLOG_ARTICLE_2_IMG} 
-                alt={website_config?.BLOG_ARTICLE_2_TITLE} 
+              <img
+                src={website_config?.BLOG_ARTICLE_2_IMG}
+                alt={website_config?.BLOG_ARTICLE_2_TITLE}
                 className="blog-img"
                 onError={(e) => {
                   e.currentTarget.src = '/no_img.png';
@@ -60,9 +62,9 @@ const ModalBlog = ({ onClose }: ModalProps) => {
             </div>
 
             <div className="blog-card">
-              <img 
-                src={website_config?.BLOG_ARTICLE_3_IMG} 
-                alt={website_config?.BLOG_ARTICLE_3_TITLE} 
+              <img
+                src={website_config?.BLOG_ARTICLE_3_IMG}
+                alt={website_config?.BLOG_ARTICLE_3_TITLE}
                 className="blog-img"
                 onError={(e) => {
                   e.currentTarget.src = '/no_img.png';

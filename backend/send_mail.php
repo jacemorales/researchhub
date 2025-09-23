@@ -127,8 +127,8 @@ function sendReceiptEmail($data) {
     }
 
     // Get site configuration
-    $site_name = getConfig('SITE_NAME') ?? 'Research Hub';
-    $contact_email = getConfig('CONTACT_EMAIL') ?? MAIL_FROM_ADDRESS;
+    $site_name = getConfig('SITE_NAME') ?? 'RESEARCH HUB ';
+    $contact_email = getConfig('CONTACT_EMAIL');
 
     // Create receipt email content
     $subject = "Payment Receipt - {$site_name}";

@@ -7,10 +7,12 @@ const ModalAbout = ({ onClose }: ModalProps) => {
   return (
     <div className="modal" id="aboutModal">
       <div className="modal-content">
-        <span className="close-modal" onClick={onClose}>×</span>
 
         <div className="modal-header">
-          <h2 className="modal-title">About {website_config?.SITE_NAME}</h2>
+          <div className="flex reverse">
+            <span className="close-modal" onClick={onClose}>×</span>
+            <h2 className="modal-title">{website_config?.BLOG_TITLE}</h2>
+          </div>
           <p className="modal-subtitle">{website_config?.ABOUT_SUBTITLE}</p>
         </div>
 

@@ -288,42 +288,42 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
   };
 
   // Internet check
-const hasInternet = useCallback(async () => {
-  const endpoints = [
-    'https://httpbin.org/ip',      // Primary
-    'https://icanhazip.com',       // Fallback — CORS enabled, very lightweight
-    'https://api.ipify.org?format=json' // Another fallback
-  ];
+  const hasInternet = useCallback(async () => {
+    const endpoints = [
+      'https://httpbin.org/ip',      // Primary
+      'https://icanhazip.com',       // Fallback — CORS enabled, very lightweight
+      'https://api.ipify.org?format=json' // Another fallback
+    ];
 
-  for (const url of endpoints) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+    for (const url of endpoints) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-      const response = await fetch(url, {
-        method: 'GET',
-        cache: 'no-cache',
-        signal: controller.signal,
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
+        const response = await fetch(url, {
+          method: 'GET',
+          cache: 'no-cache',
+          signal: controller.signal,
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          return true;
         }
-      });
-
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        return true;
+      } catch (err) {
+        console.warn(`[hasInternet] Failed to reach ${url}:`, err);
+        continue;
       }
-    } catch (err) {
-      console.warn(`[hasInternet] Failed to reach ${url}:`, err);
-      continue;
     }
-  }
 
-  return false;
-}, []);
+    return false;
+  }, []);
 
   // Phone number validation
   const validatePhoneNumber = (phone: string): boolean => {
@@ -551,8 +551,8 @@ const hasInternet = useCallback(async () => {
         const errorMessage = result.message || result.error || 'Payment initialization failed';
         const errorDetails = result.details || result.description || '';
         const errorType = paymentMethod === 'stripe' ? 'stripe' :
-                         paymentMethod === 'paypal' ? 'paypal' :
-                         paymentMethod === 'nowpayments' ? 'nowpayments' : 'paystack';
+          paymentMethod === 'paypal' ? 'paypal' :
+            paymentMethod === 'nowpayments' ? 'nowpayments' : 'paystack';
         const isRetryable = isRetryablePaystackError(errorMessage, errorDetails);
 
         handlePaymentError(errorType, errorMessage, errorDetails, isRetryable);
@@ -580,12 +580,12 @@ const hasInternet = useCallback(async () => {
       }
     } catch (error) {
       console.error("[initializePayment] Payment initialization failed:", error);
-      
+
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       const currentFormData = new FormData(formRef.current as HTMLFormElement);
       const paymentMethod = (currentFormData.get("payment_method") as string) || 'developer';
-      const errorType = ['paystack', 'stripe', 'paypal', 'nowpayments'].includes(paymentMethod) 
-        ? paymentMethod 
+      const errorType = ['paystack', 'stripe', 'paypal', 'nowpayments'].includes(paymentMethod)
+        ? paymentMethod
         : 'developer';
       const isRetryable = isRetryablePaystackError(errorMessage);
 
@@ -616,7 +616,7 @@ const hasInternet = useCallback(async () => {
   // ✅ FIXED: Renamed parameter to webhookData to avoid shadowing
   const handleWebhookResponse = useCallback((webhookData: WebhookResponseData) => {
     console.log("[handleWebhookResponse] Received webhook data:", webhookData);
-    
+
     if (webhookData.payment_status === 'success') {
       setResultData({
         status: 'success',
@@ -725,11 +725,12 @@ const hasInternet = useCallback(async () => {
   return (
     <div className="modal" id="purchaseModal">
       <div className="modal-content">
-        <span className="close-modal" onClick={onClose}>
-          &times;
-        </span>
+
         <div className="modal-header">
-          <h2 className="modal-title">{website_config?.PURCHASE_TITLE}</h2>
+          <div className="flex reverse">
+            <span className="close-modal" onClick={onClose}>&times;</span>
+            <h2 className="modal-title">{website_config?.PURCHASE_TITLE}</h2>
+          </div>
           <p className="modal-subtitle">{website_config?.PURCHASE_SUBTITLE}</p>
         </div>
         <div className="modal-body" ref={modalBodyRef}>

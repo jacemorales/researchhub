@@ -48,7 +48,7 @@
     --border-radius-lg: 1rem;
     --border-radius-xl: 1.5rem;
     --border-radius-2xl: 2rem;
-    --border-radius-full: 9999px;
+    --border-radius-full: 50%;
     
     /* Transitions */
     --transition: all 0.2s ease;
@@ -65,7 +65,7 @@
     --space-3xl: 4rem;
     
     /* Typography */
-    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-family: 'Poppins', system-ui, calibri, sans-serif;
     --font-size-xs: 0.75rem;
     --font-size-sm: 0.875rem;
     --font-size-base: 1rem;
@@ -102,12 +102,7 @@
     box-sizing: border-box;
 }
 
-html {
-    font-size: 16px;
-    scroll-behavior: smooth;
-    -webkit-text-size-adjust: 100%;
-    -ms-text-size-adjust: 100%;
-}
+
 
 body {
     font-family: var(--font-family);
@@ -122,10 +117,8 @@ body {
 
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
-    font-weight: 600;
     line-height: var(--line-height-tight);
-    color: var(--dark);
-    margin-bottom: var(--space-md);
+    text-transform: uppercase;
 }
 
 h1 { font-size: var(--font-size-4xl); }
@@ -135,21 +128,26 @@ h4 { font-size: var(--font-size-xl); }
 h5 { font-size: var(--font-size-lg); }
 h6 { font-size: var(--font-size-base); }
 
-p {
-    margin-bottom: var(--space-md);
-    line-height: var(--line-height-relaxed);
-}
 
 /* Links */
 a {
     text-decoration: none;
-    color: var(--primary);
+    color: var(--white);
     transition: var(--transition);
 }
 
-a:hover {
-    color: var(--primary-dark);
+p,h1,h2,h3,h4{
+     display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
 }
+
+.flex {display: flex;}
+.reverse{flex-direction: row-reverse;}
+.modal-header .flex.reverse {column-gap: 5px;align-items: baseline;}
+
 
 /* Form Elements */
 button, input, select, textarea {
@@ -161,7 +159,10 @@ button, input, select, textarea {
 button {
     cursor: pointer;
     border: none;
+    color: var(--white);
     background: none;
+    border-radius: var(--border-radius-md);
+    outline: none;
     transition: var(--transition);
 }
 
@@ -194,6 +195,7 @@ ul, ol {
 /* Tables */
 table {
     border-collapse: collapse;
+    background: var(--white);
     width: 100%;
     margin-bottom: var(--space-md);
 }

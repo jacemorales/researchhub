@@ -10,22 +10,22 @@ import Loading from '../../hooks/Loading';
 
 // Define types for stats
 interface CurrencyStats {
-  naira: number;
-  dollar: number;
-  crypto: number;
+    naira: number;
+    dollar: number;
+    crypto: number;
 }
 
 interface TransactionStats {
-  total: number;
-  abandoned: number;
-  success: number;
-  refunded: number;
+    total: number;
+    abandoned: number;
+    success: number;
+    refunded: number;
 }
 
 interface AdminStatusStats {
-  pending: number;
-  approved: number;
-  rejected: number;
+    pending: number;
+    approved: number;
+    rejected: number;
 }
 
 const Payments: React.FC = () => {
@@ -89,12 +89,12 @@ const Payments: React.FC = () => {
             setToast({ message: "Can't send file due to incomplete payment", type: 'error' });
             return;
         }
-        
+
         if (payment.admin_status !== 'approved') {
             setToast({ message: "Please confirm the payment first", type: 'error' });
             return;
         }
-        
+
         setSelectedPayment(payment);
         setIsSendFileModalOpen(true);
     }, []);
@@ -102,13 +102,13 @@ const Payments: React.FC = () => {
     // Helper: Handle send file
     const handleSendFile = useCallback(async () => {
         if (!selectedPayment) return;
-        
+
         const fileInfo = getFileInfoByDriveFileId(String(selectedPayment.drive_file_id));
         if (!fileInfo) {
             setToast({ message: "File information not found", type: 'error' });
             return;
         }
-        
+
         try {
             const result = await sendMail({
                 email: 'file',
@@ -118,7 +118,7 @@ const Payments: React.FC = () => {
                 file_link: fileLink,
                 link_expires: linkExpires,
             });
-            
+
             if (result.success) {
                 setToast({ message: "File email sent successfully", type: 'success' });
                 setIsSendFileModalOpen(false);
@@ -139,47 +139,47 @@ const Payments: React.FC = () => {
             const cleanDateString = dateString
                 .replace(/(\d+)(st|nd|rd|th)/, '$1') // Remove ordinal suffixes
                 .replace(' at ', ' '); // Remove ' at '
-            
+
             const date = new Date(cleanDateString);
-            
+
             if (isNaN(date.getTime())) {
                 return dateString; // Return original if parsing fails
             }
-            
+
             const now = new Date();
             const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-            
+
             // Less than 60 seconds
             if (diffInSeconds < 60) {
                 return 'just now';
             }
-            
+
             // Less than 60 minutes
             if (diffInSeconds < 3600) {
                 const minutes = Math.floor(diffInSeconds / 60);
                 return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
             }
-            
+
             // Less than 24 hours
             if (diffInSeconds < 86400) {
                 const hours = Math.floor(diffInSeconds / 3600);
                 return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
             }
-            
+
             // Less than 7 days
             if (diffInSeconds < 604800) {
                 const days = Math.floor(diffInSeconds / 86400);
                 return days === 1 ? '1 day ago' : `${days} days ago`;
             }
-            
+
             // More than 7 days - format as "7th Jan, 2025"
-            const options: Intl.DateTimeFormatOptions = { 
-                day: 'numeric', 
-                month: 'short', 
-                year: 'numeric' 
+            const options: Intl.DateTimeFormatOptions = {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric'
             };
             return date.toLocaleDateString('en-US', options);
-            
+
         } catch (error) {
             console.error('Error formatting date:', error);
             return dateString;
@@ -207,7 +207,7 @@ const Payments: React.FC = () => {
         if (typeof logs === 'string') {
             return logs;
         }
-        
+
         if (Array.isArray(logs)) {
             return logs.map(log => ({
                 timestamp: log.timestamp || log.time || 'N/A',
@@ -218,7 +218,7 @@ const Payments: React.FC = () => {
                 transaction_id: log.transaction_id || log.id || 'N/A'
             }));
         }
-        
+
         if (typeof logs === 'object') {
             return {
                 timestamp: logs.timestamp || logs.time || 'N/A',
@@ -230,7 +230,7 @@ const Payments: React.FC = () => {
                 gateway_response: logs.gateway_response || logs.response || 'N/A'
             };
         }
-        
+
         return logs;
     }, []);
 
@@ -241,7 +241,7 @@ const Payments: React.FC = () => {
         return payments.filter(payment => {
             const matchesStatus = statusFilter === 'all' || payment.payment_status === statusFilter;
             const searchLower = searchTerm.toLowerCase();
-            
+
             // Search across all columns
             const matchesSearch =
                 (payment.reference?.toLowerCase() || '').includes(searchLower) ||
@@ -267,8 +267,8 @@ const Payments: React.FC = () => {
 
         // Calculate Naira revenue (Paystack + NGN currency + completed payments)
         const nairaRevenue = payments
-            .filter(p => 
-                p.payment_method === 'paystack' && 
+            .filter(p =>
+                p.payment_method === 'paystack' &&
                 (p.currency?.toLowerCase().includes('ngn') || p.currency?.toLowerCase().includes('naira')) &&
                 p.payment_status === 'completed'
             )
@@ -276,7 +276,7 @@ const Payments: React.FC = () => {
 
         // Calculate Dollar revenue (Stripe/PayPal + USD currency + completed payments)
         const dollarRevenue = payments
-            .filter(p => 
+            .filter(p =>
                 (p.payment_method === 'stripe' || p.payment_method === 'paypal') &&
                 (p.currency?.toLowerCase().includes('usd') || p.currency?.toLowerCase().includes('dollar')) &&
                 p.payment_status === 'completed'
@@ -285,7 +285,7 @@ const Payments: React.FC = () => {
 
         // Calculate Crypto revenue (NowPayments + USD currency + completed payments)
         const cryptoRevenue = payments
-            .filter(p => 
+            .filter(p =>
                 p.payment_method === 'nowpayments' &&
                 (p.currency?.toLowerCase().includes('usd') || p.currency?.toLowerCase().includes('dollar')) &&
                 p.payment_status === 'completed'
@@ -307,7 +307,7 @@ const Payments: React.FC = () => {
 
         return payments.reduce((acc, payment) => {
             acc.total += 1;
-            
+
             switch (payment.payment_status) {
                 case 'abandoned':
                     acc.abandoned += 1;
@@ -417,7 +417,7 @@ const Payments: React.FC = () => {
         setSelectedPayment(null);
     }, []);
 
-    if (!payments) {return (<Loading />);}
+    if (!payments) { return (<Loading />); }
 
     return (
         <>
@@ -453,11 +453,11 @@ const Payments: React.FC = () => {
                             </div>
                             <div className="stat-info">
                                 <h3>Transaction Stats</h3>
-                                <div className="stat-details">
-                                    <p><strong>Total:</strong> {transactionStats.total}</p>
+                                <div className="transaction stat-details">
                                     <p><strong>Success:</strong> {transactionStats.success}</p>
                                     <p><strong>Abandoned:</strong> {transactionStats.abandoned}</p>
                                     <p><strong>Refunded:</strong> {transactionStats.refunded}</p>
+                                    <p><strong>Total:</strong> {transactionStats.total}</p>
                                 </div>
                             </div>
                         </div>
@@ -536,9 +536,9 @@ const Payments: React.FC = () => {
                                                 <span className="file-id">{payment.drive_file_id}</span>
                                             </td>
                                             <td>
-                                                <span className="amount">
+                                                <span className={`amount ${payment.payment_status}`}>
                                                     {payment.currency?.includes('NGN') ? '₦' : '$'}
-                                                    { payment.amount  ? payment.amount : '0.00'}
+                                                    {payment.amount ? payment.amount : '0.00'}
                                                 </span>
                                             </td>
                                             <td>
@@ -559,7 +559,7 @@ const Payments: React.FC = () => {
                                             </td>
                                             <td>
                                                 <span className="date">
-                                                    {payment.started_at ? 
+                                                    {payment.started_at ?
                                                         formatSocialDate(payment.started_at) : 'N/A'
                                                     }
                                                 </span>
@@ -568,7 +568,7 @@ const Payments: React.FC = () => {
                                                 <div className="action-buttons">
                                                     <div className="dropdown">
                                                         <button
-                                                            className="btn-action dropdown-toggle"
+                                                            className="btn btn-action dropdown-toggle"
                                                             onClick={() => toggleActionMenu(payment.id)}
                                                             title="More Actions"
                                                         >
@@ -626,22 +626,22 @@ const Payments: React.FC = () => {
             {isLogsModalOpen && selectedPayment && selectedPayment.transaction_logs && (
                 <div className="modal" onClick={closeModal}>
                     <div className="modal-content logs-modal" onClick={(e) => e.stopPropagation()}>
-                        <span className="close-modal" onClick={closeModal}>
-                            &times;
-                        </span>
                         <div className="modal-header">
-                            <h2 className="modal-title">Transaction Logs</h2>
+                            <div className="flex reverse">
+                                <span className="close-modal" onClick={closeModal}>&times;</span>
+                                <h2 className="modal-title">Transaction Logs</h2>
+                            </div>
                         </div>
                         <div className="modal-body">
                             {/* Tab Navigation */}
                             <div className="logs-tabs">
-                                <button 
+                                <button
                                     className={`tab-button ${activeLogTab === 'filtered' ? 'active' : ''}`}
                                     onClick={() => setActiveLogTab('filtered')}
                                 >
                                     <i className="fas fa-filter"></i> Filtered Data
                                 </button>
-                                <button 
+                                <button
                                     className={`tab-button ${activeLogTab === 'raw' ? 'active' : ''}`}
                                     onClick={() => setActiveLogTab('raw')}
                                 >
@@ -656,7 +656,7 @@ const Payments: React.FC = () => {
                                         {(() => {
                                             const parsedLogs = parseTransactionLogs(selectedPayment.transaction_logs);
                                             const filteredLogs = getFilteredLogs(parsedLogs);
-                                            
+
                                             if (Array.isArray(filteredLogs)) {
                                                 return (
                                                     <div className="logs-table">
@@ -774,7 +774,7 @@ const Payments: React.FC = () => {
                                 <strong>Amount to Pay:</strong>
                                 <span>
                                     {selectedPayment.currency?.includes('NGN') ? '₦' : '$'}
-                                    { selectedPayment.amount ? selectedPayment.amount : '0.00'}
+                                    {selectedPayment.amount ? selectedPayment.amount : '0.00'}
                                 </span>
                             </div>
                             <div className="customer-detail-row">
@@ -783,7 +783,7 @@ const Payments: React.FC = () => {
                                     {selectedPayment.payment_status === 'completed' ? (
                                         <>
                                             {selectedPayment.currency?.includes('NGN') ? '₦' : '$'}
-                                            { selectedPayment.amount ? selectedPayment.amount : '0.00'}
+                                            {selectedPayment.amount ? selectedPayment.amount : '0.00'}
                                         </>
                                     ) : (
                                         '$0.00'
@@ -812,18 +812,18 @@ const Payments: React.FC = () => {
                             <div className="customer-detail-row">
                                 <strong>Date:</strong>
                                 <span>
-                                    {selectedPayment.started_at ? 
+                                    {selectedPayment.started_at ?
                                         formatSocialDate(selectedPayment.started_at) : 'N/A'
                                     }
                                 </span>
                             </div>
-                            
+
                             {/* ✅ ADDED: Accept and Reject buttons inside Customer Info modal */}
                             {selectedPayment.admin_status === 'pending' && selectedPayment.payment_status === 'completed' && (
                                 <div className="customer-actions">
                                     <div className="action-buttons-inline">
                                         <button
-                                            className="btn-action success"
+                                            className="btn btn-action success"
                                             onClick={() => updateAdminStatus(selectedPayment.id, 'approved')}
                                             disabled={loading}
                                         >
@@ -835,7 +835,7 @@ const Payments: React.FC = () => {
                                             Accept Payment
                                         </button>
                                         <button
-                                            className="btn-action danger"
+                                            className="btn btn-action danger"
                                             onClick={() => updateAdminStatus(selectedPayment.id, 'rejected')}
                                             disabled={loading}
                                         >
@@ -866,7 +866,7 @@ const Payments: React.FC = () => {
                                 if (!fileInfo) {
                                     return <div>File information not found for Drive File ID: {selectedPayment.drive_file_id}</div>;
                                 }
-                                
+
                                 return (
                                     <>
                                         <div className="file-detail-row">
@@ -926,12 +926,12 @@ const Payments: React.FC = () => {
                                     </>
                                 );
                             })()}
-                            
+
                             <div className="modal-actions" style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
                                 <button
                                     className={`btn ${canSendFile(selectedPayment) ? 'btn-primary' : 'btn-secondary'}`}
                                     onClick={() => handleSendFileClick(selectedPayment)}
-                                    style={{ 
+                                    style={{
                                         opacity: canSendFile(selectedPayment) ? 1 : 0.6,
                                         cursor: 'pointer'
                                     }}
@@ -960,43 +960,43 @@ const Payments: React.FC = () => {
                                 if (!fileInfo) {
                                     return <div>File information not found</div>;
                                 }
-                                
+
                                 return (
                                     <>
                                         <div className="form-group">
                                             <label>Customer Email:</label>
-                                            <input 
-                                                type="email" 
-                                                value={selectedPayment.customer_email} 
-                                                disabled 
+                                            <input
+                                                type="email"
+                                                value={selectedPayment.customer_email}
+                                                disabled
                                                 className="form-control"
                                             />
                                         </div>
-                                        
+
                                         <div className="form-group">
                                             <label>Customer Name:</label>
-                                            <input 
-                                                type="text" 
-                                                value={selectedPayment.customer_name} 
-                                                disabled 
+                                            <input
+                                                type="text"
+                                                value={selectedPayment.customer_name}
+                                                disabled
                                                 className="form-control"
                                             />
                                         </div>
-                                        
+
                                         <div className="form-group">
                                             <label>File Name:</label>
-                                            <input 
-                                                type="text" 
-                                                value={fileInfo.file_name} 
-                                                disabled 
+                                            <input
+                                                type="text"
+                                                value={fileInfo.file_name}
+                                                disabled
                                                 className="form-control"
                                             />
                                         </div>
-                                        
+
                                         <div className="form-group">
                                             <label htmlFor="fileLink">File Link:</label>
-                                            <input 
-                                                type="url" 
+                                            <input
+                                                type="url"
                                                 id="fileLink"
                                                 value={fileLink}
                                                 onChange={(e) => setFileLink(e.target.value)}
@@ -1004,11 +1004,11 @@ const Payments: React.FC = () => {
                                                 className="form-control"
                                             />
                                         </div>
-                                        
+
                                         <div className="form-group">
                                             <label htmlFor="linkExpires">Link Expires:</label>
-                                            <input 
-                                                type="datetime-local" 
+                                            <input
+                                                type="datetime-local"
                                                 id="linkExpires"
                                                 value={linkExpires}
                                                 onChange={(e) => setLinkExpires(e.target.value)}
@@ -1016,7 +1016,7 @@ const Payments: React.FC = () => {
                                                 min={new Date().toISOString().slice(0, 16)}
                                             />
                                         </div>
-                                        
+
                                         <div className="modal-actions" style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
                                             <button
                                                 className="btn btn-secondary"

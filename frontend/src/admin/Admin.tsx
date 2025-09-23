@@ -659,11 +659,11 @@ export default function Admin() {
                           </div>
                         </div>
                         <div className="file-actions">
-                          <button className="btn-select-file" onClick={() => handleSelectFile(file)}>
+                          <button className="btn btn-select-file" onClick={() => handleSelectFile(file)}>
                             <i className="fas fa-check"></i> Select
                           </button>
                           {file.webViewLink && (
-                            <a href={file.webViewLink} target="_blank" className="btn-view">
+                            <a href={file.webViewLink} target="_blank" className="btn btn-view">
                               <i className="fas fa-external-link-alt"></i>
                             </a>
                           )}
@@ -830,7 +830,7 @@ export default function Admin() {
               </div>
               <h2>Connect to Google Drive</h2>
               <p>Sign in to access your documents and automatically fill file details</p>
-              <button onClick={handleLogin} className="btn-auth">
+              <button onClick={handleLogin} className="btn btn-auth">
                 <i className="fab fa-google"></i> Sign in with Google
               </button>
               <button 
@@ -838,7 +838,7 @@ export default function Admin() {
                   setUploadMode('local');
                   setShowDriveContent(true);
                 }}
-                className="btn-auth"
+                className="btn btn-auth"
                 style={{ 
                   background: 'linear-gradient(135deg, #6c757d, #5a6268)',
                   marginTop: '1rem'
