@@ -1,23 +1,16 @@
 <?php
 // cud.php - Generic Create, Update, Delete Endpoint
 
+// Universal datetime definition for all timestamp columns
+require_once __DIR__ . '/config.php';
 
-$allowedOrigins = [
-    'http://localhost:5173',
-    'https://researchhubb.netlify.app'
-];
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if (in_array($origin, $allowedOrigins)) {
-    header("Access-Control-Allow-Origin: $origin");
-}
 // Set headers for JSON response and CORS
 header("Content-Type: application/json");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Credentials: true");
 
-// Universal datetime definition for all timestamp columns
-require_once __DIR__ . '/config.php';
+
 $datetime_now = getFormattedDateTime();
 $datetime_full = $datetime_now['full'];
 
@@ -148,7 +141,8 @@ class GenericDatabaseManager {
             $sql = "
                 UPDATE academic_files 
                 SET file_name = ?, file_type = ?, file_size = ?, modified_date = ?,
-                    description = ?, category = ?, level = ?, price = ?, updated_at = ?
+                    description = ?, category = ?, level = ?, price = ?, updated_at = ?,
+                    r2_key = ?, r2_url = ?, r2_upload_status = ?
                 WHERE drive_file_id = ?
             ";
             $stmt = $this->pdo->prepare($sql);
@@ -162,6 +156,9 @@ class GenericDatabaseManager {
                 $data['level'],
                 isset($data['price']) ? json_encode($data['price']) : null,
                 $datetime_full,
+                $data['r2_key'] ?? null,
+                $data['r2_url'] ?? null,
+                $data['r2_upload_status'] ?? 'pending',
                 $data['drive_file_id']
             ]);
 
@@ -174,8 +171,8 @@ class GenericDatabaseManager {
             // Insert new file
             $sql = "
                 INSERT INTO academic_files 
-                (drive_file_id, file_name, file_type, file_size, modified_date, description, category, level, price, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (drive_file_id, file_name, file_type, file_size, modified_date, description, category, level, price, created_at, r2_key, r2_url, r2_upload_status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ";
             $stmt = $this->pdo->prepare($sql);
             $result = $stmt->execute([
@@ -188,7 +185,10 @@ class GenericDatabaseManager {
                 $data['category'],
                 $data['level'],
                 isset($data['price']) ? json_encode($data['price']) : null,
-                $data['created_at']
+                $data['created_at'],
+                $data['r2_key'] ?? null,
+                $data['r2_url'] ?? null,
+                $data['r2_upload_status'] ?? 'pending'
             ]);
 
             return [

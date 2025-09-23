@@ -6,7 +6,7 @@ interface MailOptions {
   recipient_email: string;
   recipient_name?: string;
   // For receipt emails
-  payment_id?: string;
+  payment_id?: number;
   amount?: number;
   currency?: string;
   payment_method?: string;
@@ -14,6 +14,7 @@ interface MailOptions {
   file_name?: string;
   file_link?: string;
   link_expires?: string;
+  max_downloads?: number;
   customer_name?: string;
 }
 

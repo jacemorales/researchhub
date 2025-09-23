@@ -81,9 +81,29 @@ try {
     $fetcher = new DatabaseFetcher($pdo);
 
     // Check query parameters
+    $action = $_GET['action'] ?? 'fetchAll';
     $skip_location = isset($_GET['skip_location']) && $_GET['skip_location'] === 'true';
     $location_only = isset($_GET['location_only']) && $_GET['location_only'] === 'true';
     $ping_only = isset($_GET['ping']) && $_GET['ping'] === 'true';
+
+    if ($action === 'verify_payment_status') {
+        $reference = $_GET['reference'] ?? null;
+        if (!$reference) {
+            throw new Exception('Reference parameter is required for verification.');
+        }
+        
+        $stmt = $pdo->prepare("SELECT payment_status, transaction_logs FROM payments WHERE reference = ?");
+        $stmt->execute([$reference]);
+        $payment = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$payment) {
+            echo json_encode(['success' => false, 'error' => 'Payment not found.']);
+            exit;
+        }
+
+        echo json_encode(['success' => true, 'data' => $payment]);
+        exit;
+    }
 
     if ($ping_only) {
         // Simple ping response for internet connectivity check

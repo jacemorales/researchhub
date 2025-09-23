@@ -60,6 +60,7 @@ export interface DataContextType {
   currency_code: 'USD' | 'NGN';
   currency_symbol: string; // derived from currency_code
   setCurrencyCode: (code: 'USD' | 'NGN') => void;
+  refreshData: () => void;
 }
 
 export const DataContext = createContext<DataContextType>({
@@ -70,4 +71,5 @@ export const DataContext = createContext<DataContextType>({
   currency_code: 'USD',
   currency_symbol: '$',
   setCurrencyCode: () => {},
+  refreshData: () => {},
 });

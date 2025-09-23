@@ -200,9 +200,9 @@ function sendReceiptEmail($data) {
 
 function sendFileEmail($data) {
     // Validate required fields for file email
-    $required_fields = ['recipient_email', 'file_name', 'file_link', 'link_expires', 'customer_name'];
+    $required_fields = ['recipient_email', 'customer_name', 'file_name', 'link_expires', 'max_downloads', 'payment_id'];
     foreach ($required_fields as $field) {
-        if (!isset($data[$field]) || empty($data[$field])) {
+        if (!isset($data[$field]) || (empty($data[$field]) && $data[$field] !== 0)) {
             throw new Exception("Missing required field for file email: {$field}");
         }
     }
@@ -210,17 +210,43 @@ function sendFileEmail($data) {
     $recipient_email = $data['recipient_email'];
     $customer_name = $data['customer_name'];
     $file_name = $data['file_name'];
-    $file_link = $data['file_link'];
     $link_expires = $data['link_expires'];
+    $max_downloads = (int)$data['max_downloads'];
+    $payment_id = (int)$data['payment_id'];
 
     // Validate email
     if (!filter_var($recipient_email, FILTER_VALIDATE_EMAIL)) {
         throw new Exception('Invalid recipient email address');
     }
 
+    // Generate a unique download token
+    $download_token = bin2hex(random_bytes(32));
+
+    // Prepare download data for database
+    $downloads_data = json_encode([
+        'max_downloads' => $max_downloads,
+        'download_count' => 0
+    ]);
+
+    // Update the payment record with the download token and expiry
+    $pdo = getPDOConnection();
+    $stmt = $pdo->prepare(
+        "UPDATE payments SET download_token = ?, file_access_expires_at = ?, downloads = ? WHERE id = ?"
+    );
+    $stmt->execute([$download_token, $link_expires, $downloads_data, $payment_id]);
+
+    if ($stmt->rowCount() === 0) {
+        throw new Exception("Failed to update payment record with ID: {$payment_id}");
+    }
+
     // Get site configuration
     $site_name = getConfig('SITE_NAME') ?? 'Research Hub';
     $contact_email = getConfig('CONTACT_EMAIL') ?? MAIL_FROM_ADDRESS;
+    $base_url = rtrim(VITE_API_BASE_URL, '/');
+    $download_link = "{$base_url}/download_file.php?token={$download_token}";
+
+    // Format expiry date for display
+    $expiry_date_formatted = date("F j, Y, g:i a", strtotime($link_expires));
 
     // Create file email content
     $subject = "Your File is Ready - {$site_name}";
@@ -253,15 +279,16 @@ function sendFileEmail($data) {
                 <div class='file-details'>
                     <h3>File Details</h3>
                     <p><strong>File Name:</strong> {$file_name}</p>
-                    <p><strong>Link Expires:</strong> {$link_expires}</p>
+                    <p><strong>Max Downloads:</strong> {$max_downloads}</p>
+                    <p><strong>Link Expires:</strong> {$expiry_date_formatted}</p>
                 </div>
                 
                 <div style='text-align: center;'>
-                    <a href='{$file_link}' class='download-btn'>Download File</a>
+                    <a href='{$download_link}' class='download-btn'>Download File</a>
                 </div>
                 
                 <div class='warning'>
-                    <strong>Important:</strong> This download link will expire on {$link_expires}. Please download your file before then.
+                    <strong>Important:</strong> This download link is valid for {$max_downloads} download(s) and will expire on {$expiry_date_formatted}. Please download your file before then.
                 </div>
                 
                 <p>If you have any issues downloading your file or need assistance, please contact us immediately.</p>
@@ -270,7 +297,7 @@ function sendFileEmail($data) {
                 The {$site_name} Team</p>
             </div>
             <div class='footer'>
-                <p>This link is valid until {$link_expires}</p>
+                <p>This link is valid until {$expiry_date_formatted}</p>
                 <p>Contact us: {$contact_email}</p>
             </div>
         </div>
@@ -278,7 +305,7 @@ function sendFileEmail($data) {
     </html>
     ";
 
-    // ✅ Send using centralized function
+    // Send using centralized function
     $result = sendEmailWithPHPMailer($recipient_email, $customer_name, $subject, $message);
     
     echo json_encode($result);

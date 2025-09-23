@@ -56,6 +56,7 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
   const { loading: cryptoLoading, convertUSDToCrypto } = useCryptoPricing();
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false); // New state for fallback polling
   const [showResult, setShowResult] = useState(false);
   const [resultData, setResultData] = useState<ResultData | null>(null);
   const [showErrorState, setShowErrorState] = useState(false);
@@ -290,9 +291,10 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
   // Internet check
   const hasInternet = useCallback(async () => {
     const endpoints = [
-      'https://httpbin.org/ip',      // Primary
-      'https://icanhazip.com',       // Fallback — CORS enabled, very lightweight
-      'https://api.ipify.org?format=json' // Another fallback
+      'https://corsproxy.io/?https://www.google.com/generate_204',      // Google’s CORS-Friendly Endpoint
+      'https://corsproxy.io/?https://httpbin.org/ip',      // Primary
+      'https://corsproxy.io/?https://icanhazip.com',       // Fallback — CORS enabled, very lightweight
+      'https://corsproxy.io/?https://api.ipify.org?format=json' // Another fallback
     ];
 
     for (const url of endpoints) {
@@ -441,15 +443,36 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
         return `${BASE_URI}/backend/payments/naira/paystack.php?action=initialize`;
       case 'dollar':
         if (paymentMethod === 'paypal') {
-          return `${BASE_URI}/backend/payments/dollars/paypal_integration.php`;
+          return `${BASE_URI}/backend/payments/dollars/paypal_integration.php?action=initialize`;
         }
-        return `${BASE_URI}/backend/payments/dollars/stripe_integration.php`;
+        return `${BASE_URI}/backend/payments/dollars/stripe_integration.php?action=initialize`;
       case 'crypto':
-        return `${BASE_URI}/backend/payments/crypto/nowpayments_integration.php`;
+        return `${BASE_URI}/backend/payments/crypto/nowpayments_integration.php?action=initialize`;
       default:
-        return `${BASE_URI}/backend/payments/dollars/stripe_integration.php`;
+        return `${BASE_URI}/backend/payments/dollars/stripe_integration.php?action=initialize`;
     }
   }, [BASE_URI, paymentType, paymentMethod]);
+
+  // Get verification URL based on payment type
+  const getVerifyUrl = useCallback((reference: string) => {
+    // We determine the payment method used from the reference prefix or local state
+    const method = localStorage.getItem('paymentMethod') || paymentMethod;
+    
+    if (method === 'paystack' || reference.startsWith('RESEARCH_HUB_')) { // Paystack uses the master ref
+        return `${BASE_URI}/backend/payments/naira/paystack.php?action=poll_verify&reference=${reference}`;
+    }
+    if (method === 'stripe' || reference.startsWith('STRIPE_')) {
+        return `${BASE_URI}/backend/payments/dollars/stripe_integration.php?action=verify&reference=${reference}`;
+    }
+    if (method === 'paypal' || reference.startsWith('PAYPAL_')) {
+        return `${BASE_URI}/backend/payments/dollars/paypal_integration.php?action=verify&reference=${reference}`;
+    }
+    if (method === 'nowpayments' || reference.startsWith('NOWPAY_')) {
+        return `${BASE_URI}/backend/payments/crypto/nowpayments_integration.php?action=verify&reference=${reference}`;
+    }
+    // Default fallback
+    return `${BASE_URI}/backend/payments/naira/paystack.php?action=poll_verify&reference=${reference}`;
+  }, [BASE_URI, paymentMethod]);
 
   // Initialize payment with comprehensive tracking
   const initializePayment = useCallback(async () => {
@@ -575,6 +598,8 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
 
       if (popup) {
         console.log("[initializePayment] Popup opened successfully");
+        // The new fallback polling on modal close handles verification.
+        // No need for active polling while the popup is open anymore.
       } else {
         handlePaymentError('user', 'Popup was blocked', 'Please allow popups for this site.');
       }
@@ -625,7 +650,10 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
         paidAt: webhookData.data?.paid_at || webhookData.data?.paidAt || new Date().toISOString()
       });
       setShowResult(true);
+      // Clear all payment-related localStorage items
       clearFormData();
+      localStorage.removeItem('masterRef');
+      localStorage.removeItem('platformRef');
 
       setTimeout(() => {
         if (isMounted.current) {
@@ -719,6 +747,58 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     };
   }, [handleRetryPayment, resetToInitialState, handleWebhookResponse, BASE_URI]);
 
+  // Polling function for post-closing verification
+  const startFallbackPolling = useCallback((reference: string) => {
+    setIsVerifying(true);
+
+    const pollUrl = getVerifyUrl(reference);
+    console.log(`[Fallback Polling] Starting polling for reference: ${reference} at URL: ${pollUrl}`);
+
+    const intervalId = setInterval(async () => {
+        try {
+            const response = await fetch(pollUrl);
+            const result = await response.json();
+
+            if (result.success && result.data) {
+                const status = result.data.payment_status;
+                if (status === 'completed' || status === 'failed' || status === 'abandoned') {
+                    console.log(`[Fallback Polling] Final status received: ${status}. Stopping.`);
+                    clearInterval(intervalId);
+                    setIsVerifying(false);
+
+                    // Use the existing webhook handler to display the result
+                    handleWebhookResponse({ payment_status: status === 'completed' ? 'success' : status, reference });
+                }
+            }
+        } catch (error) {
+            console.error('[Fallback Polling] Error verifying payment status:', error);
+            // Don't stop polling on network error, it might recover
+        }
+    }, 3000); // Poll every 3 seconds
+
+    // Stop polling after 2 minutes as a safeguard
+    setTimeout(() => {
+        clearInterval(intervalId);
+        if (isVerifying) {
+            setIsVerifying(false);
+            // If still verifying, show a gentle failure/timeout message
+            handlePaymentError('user', 'Verification Timed Out', 'Could not confirm payment status. Please check your email or contact support.', false);
+        }
+    }, 120000);
+
+  }, [BASE_URI, handleWebhookResponse, handlePaymentError, isVerifying]);
+
+
+  const handleClose = useCallback(() => {
+    const masterRef = localStorage.getItem('masterRef');
+    // If a payment was initiated but we haven't confirmed its status, start polling
+    if (masterRef && !showResult && !showErrorState) {
+        startFallbackPolling(masterRef);
+    } else {
+        onClose(); // Close immediately if no payment was started
+    }
+  }, [onClose, showResult, showErrorState, startFallbackPolling]);
+
   // ✅ EARLY RETURN IF data IS NULL
   if (!data) return null;
 
@@ -728,14 +808,29 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
 
         <div className="modal-header">
           <div className="flex reverse">
-            <span className="close-modal" onClick={onClose}>&times;</span>
+            <span className="close-modal" onClick={handleClose}>&times;</span>
             <h2 className="modal-title">{website_config?.PURCHASE_TITLE}</h2>
           </div>
           <p className="modal-subtitle">{website_config?.PURCHASE_SUBTITLE}</p>
         </div>
         <div className="modal-body" ref={modalBodyRef}>
+          {/* Fallback Verifying Loader */}
+          {isVerifying && (
+            <div className="payment-status loader-container">
+                <div className="status-icon">
+                    <i className="fas fa-spinner fa-spin"></i>
+                </div>
+                <p className="status-text">
+                    Verifying payment... please wait
+                </p>
+                <p className="status-subtext">
+                    Do not close this window.
+                </p>
+            </div>
+          )}
+
           {/* Processing Loader */}
-          {isProcessing && !showResult && !showErrorState && (
+          {isProcessing && !isVerifying && !showResult && !showErrorState && (
             <div className="payment-status loader-container">
               <div className="status-icon">
                 <i className="fas fa-spinner fa-spin"></i>

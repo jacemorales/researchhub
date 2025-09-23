@@ -4,10 +4,7 @@
 // Set CORS headers
 $allowedOrigins = [
     'http://localhost:5173',
-    'https://researchhubb.netlify.app',
-    'https://httpbin.org/ip',
-'https://icanhazip.com',
-'https://api.ipify.org?format=json'
+    'https://researchhubb.netlify.app'
 ];
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 if (in_array($origin, $allowedOrigins)) {

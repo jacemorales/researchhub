@@ -385,51 +385,56 @@ class StripeIntegration {
     }
 }
 
-// Handle API requests
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    header('Content-Type: application/json');
-    
-    try {
+// --- Main Request Router ---
+
+$action = $_GET['action'] ?? '';
+$stripe = new StripeIntegration();
+
+switch ($action) {
+    case 'initialize':
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['success' => false, 'error' => 'Method not allowed.']);
+            break;
+        }
         $input = json_decode(file_get_contents('php://input'), true);
-        
-        if (!$input || !isset($input['action'])) {
-            throw new Exception('Invalid request data');
+        $result = $stripe->processPayment($input);
+        echo json_encode($result);
+        break;
+
+    case 'verify':
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            http_response_code(405);
+            echo json_encode(['success' => false, 'error' => 'Method not allowed.']);
+            break;
         }
-        
-        $stripe = new StripeIntegration();
-        
-        switch ($input['action']) {
-            case 'create_payment':
-                $result = $stripe->processPayment($input);
-                echo json_encode($result);
-                break;
-                
-            case 'verify_payment':
-                if (!isset($input['reference'])) {
-                    throw new Exception('Reference is required');
-                }
-                $result = $stripe->verifyPayment($input['reference']);
-                echo json_encode($result);
-                break;
-                
-            case 'webhook':
-                $payload = file_get_contents('php://input');
-                $signature = $_SERVER['HTTP_STRIPE_SIGNATURE'] ?? '';
-                $result = $stripe->handleWebhook($payload, $signature);
-                echo json_encode($result);
-                break;
-                
-            default:
-                throw new Exception('Unknown action');
+        // Placeholder for polling verification
+        $reference = $_GET['reference'] ?? null;
+        if (!$reference) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Reference is required.']);
+            break;
         }
+        // For now, just return a pending status as per instructions
+        echo json_encode(['success' => true, 'data' => ['payment_status' => 'pending']]);
+        break;
         
-    } catch (Exception $e) {
+    case 'webhook':
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['success' => false, 'error' => 'Method not allowed.']);
+            break;
+        }
+        $payload = file_get_contents('php://input');
+        $signature = $_SERVER['HTTP_STRIPE_SIGNATURE'] ?? '';
+        $result = $stripe->handleWebhook($payload, $signature);
+        http_response_code($result['success'] ? 200 : 400);
+        echo json_encode($result);
+        break;
+
+    default:
         http_response_code(400);
-        echo json_encode([
-            'success' => false,
-            'error' => $e->getMessage()
-        ]);
-    }
-    exit;
+        echo json_encode(['success' => false, 'error' => 'Invalid action specified.']);
+        break;
 }
 ?>

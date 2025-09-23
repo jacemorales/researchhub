@@ -1,5 +1,5 @@
 // src/components/DataProvider.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { DataContext } from "./DataContext";
 import type { WebsiteConfig, AcademicFile, Payment, DataContextType } from "./DataContext";
 
@@ -44,23 +44,24 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const fetchInitialData = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/backend/db_fetch.php?skip_location=true`);
+      const result = await res.json();
+      if (result.success) {
+        setWebsiteConfig(result.data.website_config);
+        setAcademicFiles(result.data.academic_files);
+        setPayments(result.data.payments);
+      }
+    } catch (err) {
+      console.error("Error fetching initial data:", err);
+    }
+  }, []);
+
   // Fetch initial data (without location) first
   useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        const res = await fetch(`${API_BASE_URL}/backend/db_fetch.php?skip_location=true`);
-        const result = await res.json();
-        if (result.success) {
-          setWebsiteConfig(result.data.website_config);
-          setAcademicFiles(result.data.academic_files);
-          setPayments(result.data.payments);
-        }
-      } catch (err) {
-        console.error("Error fetching initial data:", err);
-      }
-    };
     fetchInitialData();
-  }, []);
+  }, [fetchInitialData]);
 
   // Fetch location silently in background - with caching
   useEffect(() => {
@@ -94,6 +95,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     return () => clearTimeout(timeoutId);
   }, []);
 
+  const refreshData = useCallback(() => {
+    return fetchInitialData();
+  }, [fetchInitialData]);
+
   return (
     <DataContext.Provider value={{
       website_config,
@@ -103,6 +108,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       currency_code,
       currency_symbol: currency_code === 'NGN' ? '₦' : '$',
       setCurrencyCode,
+      refreshData,
     }}>
       {children}
     </DataContext.Provider>

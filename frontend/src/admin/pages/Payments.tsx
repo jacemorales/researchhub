@@ -1,5 +1,5 @@
 // src/pages/Payments.tsx
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useData } from '../../hooks/useData';
 import { useCUD } from '../../hooks/useCUD';
 import { useMail } from '../../hooks/useMail';
@@ -28,8 +28,9 @@ interface AdminStatusStats {
     rejected: number;
 }
 
+
 const Payments: React.FC = () => {
-    const { payments, academic_files } = useData();
+    const { payments, academic_files, refreshData } = useData();
     const { execute, loading } = useCUD();
     const { sendMail } = useMail();
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -42,14 +43,31 @@ const Payments: React.FC = () => {
     const [isSendFileModalOpen, setIsSendFileModalOpen] = useState<boolean>(false);
     const [isActionMenuOpen, setIsActionMenuOpen] = useState<number | null>(null);
     const [activeLogTab, setActiveLogTab] = useState<'filtered' | 'raw'>('filtered');
-    const [fileLink, setFileLink] = useState<string>('');
     const [linkExpires, setLinkExpires] = useState<string>('');
+    const [maxDownloads, setMaxDownloads] = useState<number>(1);
 
     // Helper: Format status for display
     const formatStatus = useCallback((status: string | null | undefined): string => {
         if (!status) return 'Pending';
         return status.charAt(0).toUpperCase() + status.slice(1);
     }, []);
+
+    // Helper to parse price JSON
+    const parsePrice = (price: string | null | undefined): { ngn: number; usd: number } | null => {
+        if (!price) return null;
+        try {
+            const parsed = JSON.parse(price);
+            return {
+                ngn: parsed.ngn || 0,
+                usd: parsed.usd || 0,
+            };
+        } catch {
+            // Fallback for non-JSON prices
+            const numericPrice = parseFloat(price);
+            return isNaN(numericPrice) ? null : { ngn: 0, usd: numericPrice };
+        }
+    };
+
 
     // Helper: Get file name by Drive File ID
     const getFileNameByDriveFileId = useCallback((driveFileId: string): string => {
@@ -78,59 +96,89 @@ const Payments: React.FC = () => {
         return icons[method] || 'fas fa-credit-card';
     }, []);
 
-    // Helper: Check if payment can send file
-    const canSendFile = useCallback((payment: Payment): boolean => {
-        return payment.payment_status === 'completed' && payment.admin_status === 'approved';
+
+    // Helper: Show toast
+    const showToast = useCallback((message: string, type: 'success' | 'error') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 3000);
+    }, []);
+
+    // Close modals
+    const closeModal = useCallback(() => {
+        setIsLogsModalOpen(false);
+        setIsCustomerModalOpen(false);
+        setIsFileModalOpen(false);
+        setIsActionMenuOpen(null);
+        setSelectedPayment(null);
     }, []);
 
     // Helper: Handle send file button click with validation
     const handleSendFileClick = useCallback((payment: Payment) => {
         if (payment.payment_status !== 'completed') {
-            setToast({ message: "Can't send file due to incomplete payment", type: 'error' });
+            showToast("Can't send file due to incomplete payment", 'error');
             return;
         }
 
         if (payment.admin_status !== 'approved') {
-            setToast({ message: "Please confirm the payment first", type: 'error' });
+            showToast("Please confirm the payment first", 'error');
+            return;
+        }
+
+        const fileInfo = getFileInfoByDriveFileId(String(payment.drive_file_id));
+        if (fileInfo?.r2_upload_status !== 'success') {
+            showToast('File is not uploaded to R2 yet. Please re-upload.', 'error');
             return;
         }
 
         setSelectedPayment(payment);
         setIsSendFileModalOpen(true);
-    }, []);
+    }, [getFileInfoByDriveFileId, showToast]);
 
     // Helper: Handle send file
     const handleSendFile = useCallback(async () => {
         if (!selectedPayment) return;
 
-        const fileInfo = getFileInfoByDriveFileId(String(selectedPayment.drive_file_id));
-        if (!fileInfo) {
-            setToast({ message: "File information not found", type: 'error' });
+        // --- Input Validation ---
+        if (!linkExpires) {
+            showToast("Please set a link expiration date.", 'error');
+            return;
+        }
+        if (maxDownloads < 1) {
+            showToast("Max downloads must be at least 1.", 'error');
             return;
         }
 
+        const fileInfo = getFileInfoByDriveFileId(String(selectedPayment.drive_file_id));
+        if (!fileInfo) {
+            showToast("File information not found", 'error');
+            return;
+        }
+
+        showToast("Sending email...", 'success');
         try {
             const result = await sendMail({
                 email: 'file',
+                payment_id: selectedPayment.id,
                 recipient_email: selectedPayment.customer_email,
                 customer_name: selectedPayment.customer_name,
                 file_name: fileInfo.file_name,
-                file_link: fileLink,
                 link_expires: linkExpires,
+                max_downloads: maxDownloads,
             });
 
             if (result.success) {
-                setToast({ message: "File email sent successfully", type: 'success' });
+                showToast("File email sent successfully", 'success');
                 setIsSendFileModalOpen(false);
-                setFileLink('');
                 setLinkExpires('');
+                setMaxDownloads(1);
+                refreshData(); // Refresh data to show updated download info if needed
             } else {
-                setToast({ message: result.error || "Failed to send file email", type: 'error' });
+                showToast(result.error || "Failed to send file email", 'error');
             }
         } catch {
-            setToast({ message: "Failed to send file email", type: 'error' });
+            showToast("Failed to send file email", 'error');
         }
-    }, [selectedPayment, fileLink, linkExpires, getFileInfoByDriveFileId, sendMail]);
+    }, [selectedPayment, linkExpires, maxDownloads, getFileInfoByDriveFileId, sendMail, refreshData, showToast]);
 
     // Helper: Format date to social media style
     const formatSocialDate = useCallback((dateString: string): string => {
@@ -184,54 +232,6 @@ const Payments: React.FC = () => {
             console.error('Error formatting date:', error);
             return dateString;
         }
-    }, []);
-
-    // Helper: Show toast
-    const showToast = useCallback((message: string, type: 'success' | 'error') => {
-        setToast({ message, type });
-        setTimeout(() => setToast(null), 3000);
-    }, []);
-
-    // Helper: Parse and filter transaction logs
-    const parseTransactionLogs = useCallback((logs: string) => {
-        try {
-            const parsed = JSON.parse(logs);
-            return parsed;
-        } catch {
-            return logs;
-        }
-    }, []);
-
-    // Helper: Filter transaction logs for meaningful data
-    const getFilteredLogs = useCallback((logs?: any) => {
-        if (typeof logs === 'string') {
-            return logs;
-        }
-
-        if (Array.isArray(logs)) {
-            return logs.map(log => ({
-                timestamp: log.timestamp || log.time || 'N/A',
-                status: log.status || log.state || 'N/A',
-                message: log.message || log.description || 'N/A',
-                amount: log.amount || 'N/A',
-                currency: log.currency || 'N/A',
-                transaction_id: log.transaction_id || log.id || 'N/A'
-            }));
-        }
-
-        if (typeof logs === 'object') {
-            return {
-                timestamp: logs.timestamp || logs.time || 'N/A',
-                status: logs.status || logs.state || 'N/A',
-                message: logs.message || logs.description || 'N/A',
-                amount: logs.amount || 'N/A',
-                currency: logs.currency || 'N/A',
-                transaction_id: logs.transaction_id || logs.id || 'N/A',
-                gateway_response: logs.gateway_response || logs.response || 'N/A'
-            };
-        }
-
-        return logs;
     }, []);
 
     // Filter and search payments
@@ -371,8 +371,8 @@ const Payments: React.FC = () => {
         setIsActionMenuOpen(null);
     }, []);
 
-    // Update payment status (admin_status)
-    const updateAdminStatus = useCallback(async (paymentId: number, status: 'approved' | 'rejected') => {
+    // Update payment status (admin_status) - SAFER IMPLEMENTATION
+    const updateAdminStatus = useCallback(async (payment: Payment, status: 'approved' | 'rejected') => {
         let confirmationMessage = '';
         if (status === 'rejected') {
             confirmationMessage = 'Are you sure you want to reject this payment? This action cannot be undone.';
@@ -388,34 +388,70 @@ const Payments: React.FC = () => {
             const result = await execute(
                 { table: 'payments', action: 'update' },
                 {
-                    id: paymentId,
+                    id: payment.id,
                     admin_status: status,
                 }
             );
 
             if (result.success) {
                 showToast(`Payment marked as ${status}!`, 'success');
+                refreshData(); // Refresh data to reflect the change
+                closeModal(); // Close the current modal, forcing admin to re-evaluate
             } else {
                 showToast(result.error || 'Failed to update payment status.', 'error');
             }
         } catch {
             showToast('Failed to update payment status.', 'error');
         }
-    }, [execute, showToast]);
+    }, [execute, refreshData, showToast, closeModal]);
 
     // Toggle action menu
     const toggleActionMenu = useCallback((paymentId: number) => {
         setIsActionMenuOpen(prev => prev === paymentId ? null : paymentId);
     }, []);
 
-    // Close modals
-    const closeModal = useCallback(() => {
-        setIsLogsModalOpen(false);
-        setIsCustomerModalOpen(false);
-        setIsFileModalOpen(false);
-        setIsActionMenuOpen(null);
-        setSelectedPayment(null);
-    }, []);
+    const pollingRef = useRef<NodeJS.Timeout | null>(null);
+    // Effect for real-time updates using short polling
+    useEffect(() => {
+        const startPolling = () => {
+            // Clear any existing interval
+            if (pollingRef.current) {
+                clearInterval(pollingRef.current);
+            }
+            // Start a new one
+            pollingRef.current = setInterval(() => {
+                console.log('Admin Payments Page: Refreshing data...');
+                refreshData();
+            }, 10000); // Refresh every 10 seconds
+        };
+
+        const stopPolling = () => {
+            if (pollingRef.current) {
+                clearInterval(pollingRef.current);
+                pollingRef.current = null;
+            }
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') {
+                stopPolling();
+            } else {
+                startPolling();
+            }
+        };
+
+        // Initial fetch
+        refreshData();
+        // Start polling
+        startPolling();
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            stopPolling();
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [refreshData]);
 
     if (!payments) { return (<Loading />); }
 
@@ -653,78 +689,7 @@ const Payments: React.FC = () => {
                             <div className="logs-content">
                                 {activeLogTab === 'filtered' ? (
                                     <div className="filtered-logs">
-                                        {(() => {
-                                            const parsedLogs = parseTransactionLogs(selectedPayment.transaction_logs);
-                                            const filteredLogs = getFilteredLogs(parsedLogs);
-
-                                            if (Array.isArray(filteredLogs)) {
-                                                return (
-                                                    <div className="logs-table">
-                                                        <table>
-                                                            <thead>
-                                                                <tr>
-                                                                    <th>Timestamp</th>
-                                                                    <th>Status</th>
-                                                                    <th>Message</th>
-                                                                    <th>Amount</th>
-                                                                    <th>Transaction ID</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {filteredLogs.map((log: any, index: number) => (
-                                                                    <tr key={index}>
-                                                                        <td>{log.timestamp}</td>
-                                                                        <td>
-                                                                            <span className={`status status-${log.status?.toLowerCase()}`}>
-                                                                                {log.status}
-                                                                            </span>
-                                                                        </td>
-                                                                        <td>{log.message}</td>
-                                                                        <td>{log.currency} {log.amount}</td>
-                                                                        <td className="transaction-id">{log.transaction_id}</td>
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                );
-                                            } else if (typeof filteredLogs === 'object') {
-                                                return (
-                                                    <div className="logs-details">
-                                                        <div className="detail-row">
-                                                            <strong>Timestamp:</strong>
-                                                            <span>{filteredLogs.timestamp}</span>
-                                                        </div>
-                                                        <div className="detail-row">
-                                                            <strong>Status:</strong>
-                                                            <span className={`status status-${filteredLogs.status?.toLowerCase()}`}>
-                                                                {filteredLogs.status}
-                                                            </span>
-                                                        </div>
-                                                        <div className="detail-row">
-                                                            <strong>Message:</strong>
-                                                            <span>{filteredLogs.message}</span>
-                                                        </div>
-                                                        <div className="detail-row">
-                                                            <strong>Amount:</strong>
-                                                            <span>{filteredLogs.currency} {filteredLogs.amount}</span>
-                                                        </div>
-                                                        <div className="detail-row">
-                                                            <strong>Transaction ID:</strong>
-                                                            <span className="transaction-id">{filteredLogs.transaction_id}</span>
-                                                        </div>
-                                                        {filteredLogs.gateway_response && (
-                                                            <div className="detail-row">
-                                                                <strong>Gateway Response:</strong>
-                                                                <span>{filteredLogs.gateway_response}</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            } else {
-                                                return <pre>{filteredLogs}</pre>;
-                                            }
-                                        })()}
+                                        <p>Filtered view is not yet implemented. Please view raw data.</p>
                                     </div>
                                 ) : (
                                     <pre className="raw-logs">
@@ -824,7 +789,7 @@ const Payments: React.FC = () => {
                                     <div className="action-buttons-inline">
                                         <button
                                             className="btn btn-action success"
-                                            onClick={() => updateAdminStatus(selectedPayment.id, 'approved')}
+                                            onClick={() => updateAdminStatus(selectedPayment, 'approved')}
                                             disabled={loading}
                                         >
                                             {loading ? (
@@ -836,7 +801,7 @@ const Payments: React.FC = () => {
                                         </button>
                                         <button
                                             className="btn btn-action danger"
-                                            onClick={() => updateAdminStatus(selectedPayment.id, 'rejected')}
+                                            onClick={() => updateAdminStatus(selectedPayment, 'rejected')}
                                             disabled={loading}
                                         >
                                             <i className="fas fa-times"></i> Reject Payment
@@ -861,11 +826,12 @@ const Payments: React.FC = () => {
                         </div>
                         <div className="modal-body">
                             {(() => {
-                                // ✅ FIXED: Using drive_file_id to fetch file info
                                 const fileInfo = getFileInfoByDriveFileId(String(selectedPayment.drive_file_id));
                                 if (!fileInfo) {
                                     return <div>File information not found for Drive File ID: {selectedPayment.drive_file_id}</div>;
                                 }
+
+                                const price = parsePrice(fileInfo.price);
 
                                 return (
                                     <>
@@ -899,7 +865,14 @@ const Payments: React.FC = () => {
                                         </div>
                                         <div className="file-detail-row">
                                             <strong>Price:</strong>
-                                            <span>${typeof fileInfo.price === 'string' ? parseFloat(fileInfo.price).toFixed(2) : '0.00'}</span>
+                                            {price ? (
+                                                <span>
+                                                    NGN: ₦{price.ngn.toFixed(2)}<br />
+                                                    USD: ${price.usd.toFixed(2)}
+                                                </span>
+                                            ) : (
+                                                <span>Not available</span>
+                                            )}
                                         </div>
                                         <div className="file-detail-row">
                                             <strong>Description:</strong>
@@ -929,12 +902,8 @@ const Payments: React.FC = () => {
 
                             <div className="modal-actions" style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
                                 <button
-                                    className={`btn ${canSendFile(selectedPayment) ? 'btn-primary' : 'btn-secondary'}`}
+                                    className="btn btn-primary"
                                     onClick={() => handleSendFileClick(selectedPayment)}
-                                    style={{
-                                        opacity: canSendFile(selectedPayment) ? 1 : 0.6,
-                                        cursor: 'pointer'
-                                    }}
                                 >
                                     <i className="fas fa-paper-plane" /> Send File
                                 </button>
@@ -994,13 +963,13 @@ const Payments: React.FC = () => {
                                         </div>
 
                                         <div className="form-group">
-                                            <label htmlFor="fileLink">File Link:</label>
+                                            <label htmlFor="maxDownloads">Max Downloads:</label>
                                             <input
-                                                type="url"
-                                                id="fileLink"
-                                                value={fileLink}
-                                                onChange={(e) => setFileLink(e.target.value)}
-                                                placeholder="https://example.com/file.pdf"
+                                                type="number"
+                                                id="maxDownloads"
+                                                value={maxDownloads}
+                                                onChange={(e) => setMaxDownloads(parseInt(e.target.value, 10))}
+                                                min="1"
                                                 className="form-control"
                                             />
                                         </div>
@@ -1022,8 +991,8 @@ const Payments: React.FC = () => {
                                                 className="btn btn-secondary"
                                                 onClick={() => {
                                                     setIsSendFileModalOpen(false);
-                                                    setFileLink('');
                                                     setLinkExpires('');
+                                                    setMaxDownloads(1);
                                                 }}
                                             >
                                                 Cancel
@@ -1031,7 +1000,6 @@ const Payments: React.FC = () => {
                                             <button
                                                 className="btn btn-primary"
                                                 onClick={handleSendFile}
-                                                disabled={!fileLink || !linkExpires}
                                             >
                                                 <i className="fas fa-paper-plane" /> Send File
                                             </button>

@@ -161,10 +161,10 @@ $amount = isset($transaction['amount']) ? ($transaction['amount'] / 100) : null;
 $email = $transaction['customer']['email'] ?? null;
 
 $status = match($event) {
-    'charge.success' => 'success',
+    'charge.success' => 'completed',
     'charge.failed' => 'failed',
     'charge.abandoned' => 'abandoned',
-    default => 'unknown'
+    default => 'pending' // Default to pending for other events
 };
 
 // Initialize database connection

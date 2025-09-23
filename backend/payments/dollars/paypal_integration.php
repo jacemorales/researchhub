@@ -285,6 +285,19 @@ switch ($action) {
         </script></body></html>';
         break;
 
+    case 'verify':
+        header('Content-Type: application/json');
+        // Placeholder for polling verification
+        $reference = $_GET['reference'] ?? null;
+        if (!$reference) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Reference is required.']);
+            break;
+        }
+        // For now, just return a pending status as per instructions
+        echo json_encode(['success' => true, 'data' => ['payment_status' => 'pending']]);
+        break;
+
     default:
         http_response_code(400);
         header('Content-Type: application/json');

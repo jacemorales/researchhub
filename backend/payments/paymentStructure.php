@@ -108,6 +108,18 @@ function createPaymentRow($driveFileId, $customerName, $customerEmail, $customer
 }
 
 /**
+ * Map general status to the database ENUM values
+ */
+function mapGeneralPaymentStatus($status) {
+    return match (strtolower($status)) {
+        'success', 'completed', 'paid', 'successful' => 'completed',
+        'failure', 'failed', 'error' => 'failed',
+        'abandoned' => 'abandoned',
+        default => 'pending',
+    };
+}
+
+/**
  * Append log entry and update payment status
  */
 function appendLogAndUpdateStatus($masterReference, $status, $gatewayResponse = '') {
@@ -148,10 +160,12 @@ function appendLogAndUpdateStatus($masterReference, $status, $gatewayResponse = 
             ];
         }
 
-        $update = $pdo->prepare("UPDATE payments SET transaction_logs = ?, payment_status = ?, updated_at = ? WHERE reference = ?");
-        $update->execute([json_encode($journey), $status, $dt['full'], $masterReference]);
+        $mappedStatus = mapGeneralPaymentStatus($status);
 
-        if ($status === 'success') {
+        $update = $pdo->prepare("UPDATE payments SET transaction_logs = ?, payment_status = ?, updated_at = ? WHERE reference = ?");
+        $update->execute([json_encode($journey), $mappedStatus, $dt['full'], $masterReference]);
+
+        if ($mappedStatus === 'completed') {
             $pdo->prepare("UPDATE payments SET completed_at = ? WHERE reference = ? AND completed_at IS NULL")->execute([$dt['full'], $masterReference]);
         }
         return true;

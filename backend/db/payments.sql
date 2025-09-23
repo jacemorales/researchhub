@@ -36,9 +36,15 @@ CREATE TABLE payments (
     -- Full Audit Trail — All platform attempts, logs, analytics stored here
     transaction_logs LONGTEXT NOT NULL COMMENT 'JSON structure containing all payment attempts, platform references, and logs',
 
+    -- Secure Download Link Details
+    download_token VARCHAR(255) NULL DEFAULT NULL UNIQUE,
+    file_access_expires_at DATETIME NULL DEFAULT NULL,
+    downloads JSON NULL DEFAULT NULL,
+
     -- Indexes for performance
     INDEX idx_drive_file_id (drive_file_id),
     INDEX idx_customer_email (customer_email),
     INDEX idx_payment_status (payment_status),
-    INDEX idx_reference (reference)
+    INDEX idx_reference (reference),
+    INDEX idx_download_token (download_token)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

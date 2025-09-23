@@ -60,19 +60,87 @@ switch ($action) {
         handleInitialize();
         break;
     case 'verify':
+        // This is for the browser redirect from Paystack
         handleVerify();
+        break;
+    case 'poll_verify':
+        // This is for the frontend polling
+        handlePollVerify();
         break;
     default:
         http_response_code(400);
         echo json_encode([
             'status' => 'error',
-            'message' => 'Invalid action parameter. Use action=initialize or action=verify'
+            'message' => 'Invalid action parameter. Use action=initialize, action=verify, or action=poll_verify'
         ]);
         break;
 }
 
 ob_end_flush();
 exit;
+
+/**
+ * Handle polling verification from the frontend
+ */
+function handlePollVerify() {
+    header('Content-Type: application/json');
+    $reference = $_GET['reference'] ?? null;
+
+    if (!$reference) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Reference is required.']);
+        return;
+    }
+
+    try {
+        $payment = getPaymentByReference($reference);
+        if (!$payment) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'error' => 'Payment not found.']);
+            return;
+        }
+
+        // If status is already final, just return it.
+        if ($payment['payment_status'] !== 'pending') {
+            echo json_encode(['success' => true, 'data' => ['payment_status' => $payment['payment_status']]]);
+            return;
+        }
+
+        // If still pending, verify with Paystack
+        $ch = curl_init("https://api.paystack.co/transaction/verify/" . rawurlencode($reference));
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => ["Authorization: Bearer " . PAYSTACK_SECRET, "Cache-Control: no-cache"],
+        ]);
+
+        $response = curl_exec($ch);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        if ($err) {
+            // Don't throw an error, just return the current pending status. The poller will try again.
+            echo json_encode(['success' => true, 'data' => ['payment_status' => 'pending']]);
+            return;
+        }
+
+        $result = json_decode($response, true);
+        if (isset($result['data']) && isset($result['data']['status'])) {
+            $paystackStatus = $result['data']['status'];
+            // Update our DB
+            appendLogAndUpdateStatus($reference, $paystackStatus, $result);
+            // Return the new status
+            echo json_encode(['success' => true, 'data' => ['payment_status' => mapGeneralPaymentStatus($paystackStatus)]]);
+        } else {
+            // Paystack might have returned an error, just return pending for now.
+            echo json_encode(['success' => true, 'data' => ['payment_status' => 'pending']]);
+        }
+
+    } catch (Throwable $e) {
+        error_log("Error in handlePollVerify: " . $e->getMessage());
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'An internal error occurred.']);
+    }
+}
 
 /**
  * Handle payment initialization

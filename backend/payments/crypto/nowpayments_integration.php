@@ -467,56 +467,61 @@ class NowPaymentsIntegration {
     }
 }
 
-// Handle API requests
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    header('Content-Type: application/json');
-    
-    try {
+// --- Main Request Router ---
+
+$action = $_GET['action'] ?? '';
+$nowpayments = new NowPaymentsIntegration();
+
+// The IPN listener doesn't use a GET action, so we handle it separately.
+if (isset($_SERVER['HTTP_X_NOWPAYMENTS_SIG'])) {
+    $action = 'ipn';
+}
+
+switch ($action) {
+    case 'initialize':
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['success' => false, 'error' => 'Method not allowed.']);
+            break;
+        }
         $input = json_decode(file_get_contents('php://input'), true);
-        
-        if (!$input || !isset($input['action'])) {
-            throw new Exception('Invalid request data');
+        $result = $nowpayments->processPayment($input);
+        echo json_encode($result);
+        break;
+
+    case 'verify':
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            http_response_code(405);
+            echo json_encode(['success' => false, 'error' => 'Method not allowed.']);
+            break;
         }
-        
-        $nowpayments = new NowPaymentsIntegration();
-        
-        switch ($input['action']) {
-            case 'create_payment':
-                $result = $nowpayments->processPayment($input);
-                echo json_encode($result);
-                break;
-                
-            case 'verify_payment':
-                if (!isset($input['reference'])) {
-                    throw new Exception('Reference is required');
-                }
-                $result = $nowpayments->verifyPayment($input['reference']);
-                echo json_encode($result);
-                break;
-                
-            case 'get_currencies':
-                $result = $nowpayments->getAvailableCurrencies();
-                echo json_encode($result);
-                break;
-                
-            case 'ipn':
-                $payload = file_get_contents('php://input');
-                $signature = $_SERVER['HTTP_X_NOWPAYMENTS_SIG'] ?? '';
-                $result = $nowpayments->handleIPN($payload, $signature);
-                echo json_encode($result);
-                break;
-                
-            default:
-                throw new Exception('Unknown action');
+        // Placeholder for polling verification
+        $reference = $_GET['reference'] ?? null;
+        if (!$reference) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Reference is required.']);
+            break;
         }
-        
-    } catch (Exception $e) {
+        // For now, just return a pending status as per instructions
+        echo json_encode(['success' => true, 'data' => ['payment_status' => 'pending']]);
+        break;
+
+    case 'ipn':
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['success' => false, 'error' => 'Method not allowed.']);
+            break;
+        }
+        $payload = file_get_contents('php://input');
+        $signature = $_SERVER['HTTP_X_NOWPAYMENTS_SIG'] ?? '';
+        $result = $nowpayments->handleIPN($payload, $signature);
+        http_response_code($result['success'] ? 200 : 400);
+        echo json_encode($result);
+        break;
+
+    default:
         http_response_code(400);
-        echo json_encode([
-            'success' => false,
-            'error' => $e->getMessage()
-        ]);
-    }
-    exit;
+        echo json_encode(['success' => false, 'error' => 'Invalid action specified.']);
+        break;
 }
 ?>
