@@ -308,12 +308,12 @@ function sendFileEmail($data) {
     ";
 
     // Send using centralized function
-    //$result = sendEmailWithPHPMailer($recipient_email, $customer_name, $subject, $message);
-     $result = [
-        'success' => true,
-        'message' => 'Email sending is disabled. Link generated.',
-        'download_link' => $download_link
-    ];
+    $result = sendEmailWithPHPMailer($recipient_email, $customer_name, $subject, $message);
+    //  $result = [
+    //     'success' => true,
+    //     'message' => 'Email sending is disabled. Link generated.',
+    //     'download_link' => $download_link
+    // ];
     echo json_encode($result, JSON_UNESCAPED_SLASHES);
 }
 

@@ -558,6 +558,7 @@ const Payments: React.FC = () => {
                                         <th>Method</th>
                                         <th>Status</th>
                                         <th>Admin</th>
+                                        <th>Upload</th>
                                         <th>Date</th>
                                         <th>Actions</th>
                                     </tr>
@@ -572,7 +573,7 @@ const Payments: React.FC = () => {
                                                 <span className="file-id">{payment.drive_file_id}</span>
                                             </td>
                                             <td>
-                                                <span className={`amount ${payment.payment_status}`}>
+                                                <span className={`amount status ${payment.payment_status}`}>
                                                     {payment.currency?.includes('NGN') ? '₦' : '$'}
                                                     {payment.amount ? payment.amount : '0.00'}
                                                 </span>
@@ -584,14 +585,24 @@ const Payments: React.FC = () => {
                                                 </span>
                                             </td>
                                             <td>
-                                                <span className={`status status-${payment.payment_status}`}>
+                                                <span className={`status ${payment.payment_status}`}>
                                                     {formatStatus(payment.payment_status)}
                                                 </span>
                                             </td>
                                             <td>
-                                                <span className={`status status-${payment.admin_status || 'pending'}`}>
+                                                <span className={`status ${payment.admin_status || 'pending'}`}>
                                                     {formatStatus(payment.admin_status)}
                                                 </span>
+                                            </td>
+                                            <td>
+                                                {filteredPayments.map((payment) => {
+                                                    const fileInfo = getFileInfoByDriveFileId(String(payment.drive_file_id));
+                                                    return (
+                                                        <span className={`status ${fileInfo ? (fileInfo.r2_upload_status || '') : ''}`}>
+                                                            {/* {fileInfo ? formatStatus(fileInfo.r2_upload_status) : ''} */}
+                                                        </span>
+                                                    );
+                                                })}
                                             </td>
                                             <td>
                                                 <span className="date">
@@ -712,11 +723,12 @@ const Payments: React.FC = () => {
             {isCustomerModalOpen && selectedPayment && (
                 <div className="modal" onClick={closeModal}>
                     <div className="modal-content customer-modal" onClick={(e) => e.stopPropagation()}>
-                        <span className="close-modal" onClick={closeModal}>
-                            &times;
-                        </span>
+
                         <div className="modal-header">
-                            <h2 className="modal-title">Customer Information</h2>
+                            <div className="flex reverse">
+                                <span className="close-modal" onClick={closeModal}>&times;</span>
+                                <h2 className="modal-title">Customer Information</h2>
+                            </div>
                         </div>
                         <div className="modal-body">
                             <div className="customer-detail-row">
@@ -764,13 +776,13 @@ const Payments: React.FC = () => {
                             </div>
                             <div className="customer-detail-row">
                                 <strong>Payment Status:</strong>
-                                <span className={`status status-${selectedPayment.payment_status}`}>
+                                <span className={`status ${selectedPayment.payment_status}`}>
                                     {formatStatus(selectedPayment.payment_status)}
                                 </span>
                             </div>
                             <div className="customer-detail-row">
                                 <strong>Admin Status:</strong>
-                                <span className={`status status-${selectedPayment.admin_status}`}>
+                                <span className={`status ${selectedPayment.admin_status}`}>
                                     {formatStatus(selectedPayment.admin_status)}
                                 </span>
                             </div>
@@ -785,28 +797,26 @@ const Payments: React.FC = () => {
 
                             {/* ✅ ADDED: Accept and Reject buttons inside Customer Info modal */}
                             {selectedPayment.admin_status === 'pending' && selectedPayment.payment_status === 'completed' && (
-                                <div className="customer-actions">
-                                    <div className="action-buttons-inline">
-                                        <button
-                                            className="btn btn-action success"
-                                            onClick={() => updateAdminStatus(selectedPayment, 'approved')}
-                                            disabled={loading}
-                                        >
-                                            {loading ? (
-                                                <i className="fas fa-spinner fa-spin"></i>
-                                            ) : (
-                                                <i className="fas fa-check"></i>
-                                            )}
-                                            Accept Payment
-                                        </button>
-                                        <button
-                                            className="btn btn-action danger"
-                                            onClick={() => updateAdminStatus(selectedPayment, 'rejected')}
-                                            disabled={loading}
-                                        >
-                                            <i className="fas fa-times"></i> Reject Payment
-                                        </button>
-                                    </div>
+                                <div className="modal-actions">
+                                    <button
+                                        className="btn btn-action success"
+                                        onClick={() => updateAdminStatus(selectedPayment, 'approved')}
+                                        disabled={loading}
+                                    >
+                                        {loading ? (
+                                            <i className="fas fa-spinner fa-spin"></i>
+                                        ) : (
+                                            <i className="fas fa-check"></i>
+                                        )}
+                                        Accept Payment
+                                    </button>
+                                    <button
+                                        className="btn btn-action danger"
+                                        onClick={() => updateAdminStatus(selectedPayment, 'rejected')}
+                                        disabled={loading}
+                                    >
+                                        <i className="fas fa-times"></i> Reject Payment
+                                    </button>
                                 </div>
                             )}
                         </div>
@@ -818,11 +828,12 @@ const Payments: React.FC = () => {
             {isFileModalOpen && selectedPayment && (
                 <div className="modal" onClick={closeModal}>
                     <div className="modal-content file-modal" onClick={(e) => e.stopPropagation()}>
-                        <span className="close-modal" onClick={closeModal}>
-                            &times;
-                        </span>
+
                         <div className="modal-header">
-                            <h2 className="modal-title">File Information</h2>
+                            <div className="flex reverse">
+                                <span className="close-modal" onClick={closeModal}>&times;</span>
+                                <h2 className="modal-title">File Information</h2>
+                            </div>
                         </div>
                         <div className="modal-body">
                             {(() => {
@@ -891,7 +902,7 @@ const Payments: React.FC = () => {
                                         {fileInfo.r2_upload_status && (
                                             <div className="file-detail-row">
                                                 <strong>R2 Upload Status:</strong>
-                                                <span className={`status status-${fileInfo.r2_upload_status}`}>
+                                                <span className={`status ${fileInfo.r2_upload_status}`}>
                                                     {formatStatus(fileInfo.r2_upload_status)}
                                                 </span>
                                             </div>
@@ -900,7 +911,7 @@ const Payments: React.FC = () => {
                                 );
                             })()}
 
-                            <div className="modal-actions" style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                            <div className="modal-actions">
                                 <button
                                     className="btn btn-primary"
                                     onClick={() => handleSendFileClick(selectedPayment)}
@@ -986,7 +997,7 @@ const Payments: React.FC = () => {
                                             />
                                         </div>
 
-                                        <div className="modal-actions" style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                                        <div className="modal-actions">
                                             <button
                                                 className="btn btn-secondary"
                                                 onClick={() => {

@@ -21,7 +21,7 @@ const FileDownload: React.FC = () => {
 
             try {
                 const response = await fetch(`${API_BASE_URL}/backend/download_file.php?token=${token}`);
-                
+
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.error || 'Failed to initiate download. The link may be invalid or expired.');
@@ -62,7 +62,7 @@ const FileDownload: React.FC = () => {
                             <p>{message}</p>
                         </div>
                     )}
-                    
+
                     {!loading && error && (
                         <div className="error-section">
                             <div className="error-icon">
@@ -88,23 +88,30 @@ const FileDownload: React.FC = () => {
             </div>
 
             <style>{`
+                *{margin:0;padding:0;box-sizing:border-box;}
+
+                body{
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                    font-family: system-ui, calibri, sans-serif;
+                }
+
                 .file-download-container {
                     display: flex;
                     justify-content: center;
                     align-items: center;
                     height: 100vh;
                     background-color: #f4f7f6;
-                    font-family: 'Arial', sans-serif;
                 }
 
                 .file-download-box {
                     text-align: center;
                     padding: 40px;
                     background-color: #ffffff;
+                    box-shadow: 0px 0px 20px rgb(117 117 117 / 48%);
                     border-radius: 10px;
-                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-                    width: 90%;
-                    max-width: 500px;
+                    width: 500px;
                 }
 
                 /* Loading Section */
@@ -134,34 +141,20 @@ const FileDownload: React.FC = () => {
                     font-size: 16px;
                 }
 
-                /* Error Section */
-                .error-section .error-icon {
-                    font-size: 50px;
-                    color: #e74c3c;
-                    margin-bottom: 20px;
-                }
-
-                .error-section h2 {
-                    color: #e74c3c;
-                    font-size: 24px;
-                    margin-bottom: 10px;
-                }
-
-                .error-section .error-message {
-                    color: #555;
-                    font-size: 16px;
-                    line-height: 1.5;
-                    margin-bottom: 25px;
-                }
+                
 
                 .home-link {
-                    display: inline-block;
-                    padding: 12px 25px;
+                    padding: 15px 25px;
                     background-color: #3498db;
                     color: #ffffff;
                     text-decoration: none;
-                    border-radius: 5px;
+                    display: flex;
+                    text-align: center;
+                    justify-content: center;
+                    line-height: 1;
+                    border-radius: 10px;
                     font-size: 16px;
+                    font-weight: 600;
                     transition: background-color 0.3s ease;
                 }
 
@@ -169,23 +162,36 @@ const FileDownload: React.FC = () => {
                     background-color: #2980b9;
                 }
 
-                /* Success Section */
-                .success-section .success-icon {
-                    font-size: 50px;
-                    color: #2ecc71;
-                    margin-bottom: 20px;
+                /* Error/Success Section */
+                .error-section .error-icon,
+                .error-section h2 {
+                    color: #e74c3c;
                 }
 
+                .success-section .success-icon,
                 .success-section h2 {
                     color: #2ecc71;
-                    font-size: 24px;
-                    margin-bottom: 10px;
                 }
 
+                .error-section .error-icon,
+                .success-section .success-icon{
+                    font-size: 50px;
+                }
+
+                .error-section h2,
+                .success-section h2 {
+                    font-size: 24px;
+                }
+
+                .error-section .error-message {color: #555;}
+                .success-section p {color: #666;}
+
+                .error-section .error-message,
                 .success-section p {
-                    color: #666;
                     font-size: 16px;
                     line-height: 1.5;
+                    margin: 5px 0 20px 0;
+                    font-weight: 500;
                 }
             `}</style>
         </>

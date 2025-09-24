@@ -22,7 +22,7 @@ const Header = () => {
     <nav className="admin-navbar">
       <div className="navbar-brand">
         <i className="fas fa-graduation-cap"></i>
-        <span>Research Hub Admin</span>
+        <span>Research Hub</span>
       </div>
       
       <div className="navbar-center desktop-nav">

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useData } from '../../hooks/useData';
 import { useCUD } from '../../hooks/useCUD';
-import {AdminToast} from '../../hooks/Toast';
+import { AdminToast } from '../../hooks/Toast';
 import Header from '../components/Header';
 
 // Define a type for the full config object
@@ -102,31 +102,31 @@ const Settings: React.FC = () => {
     }, [configCategories]);
 
 
-// Initialize config data from the hook
-useEffect(() => {
-    if (initialWebsiteConfig) {
-        const fullData: { [key: string]: FullConfigItem } = {};
-        Object.keys(initialWebsiteConfig).forEach(key => {
-            // ✅ Skip description keys
-            if (key.endsWith('_DESC')) {
-                return;
-            }
-            
-            // ✅ Get the description using the _DESC suffix
-            const descKey = key + '_DESC';
-            const description = initialWebsiteConfig[descKey] || `Description for ${formatConfigKey(key)}`;
-            
-            fullData[key] = {
-                config_key: key,
-                config_value: initialWebsiteConfig[key],
-                config_type: getMockConfigType(key),
-                config_category: getMockConfigCategory(key),
-                config_description: description // ✅ Use real description
-            };
-        });
-        setConfigData(fullData);
-    }
-}, [initialWebsiteConfig, getMockConfigCategory]);
+    // Initialize config data from the hook
+    useEffect(() => {
+        if (initialWebsiteConfig) {
+            const fullData: { [key: string]: FullConfigItem } = {};
+            Object.keys(initialWebsiteConfig).forEach(key => {
+                // ✅ Skip description keys
+                if (key.endsWith('_DESC')) {
+                    return;
+                }
+
+                // ✅ Get the description using the _DESC suffix
+                const descKey = key + '_DESC';
+                const description = initialWebsiteConfig[descKey] || `Description for ${formatConfigKey(key)}`;
+
+                fullData[key] = {
+                    config_key: key,
+                    config_value: initialWebsiteConfig[key],
+                    config_type: getMockConfigType(key),
+                    config_category: getMockConfigCategory(key),
+                    config_description: description // ✅ Use real description
+                };
+            });
+            setConfigData(fullData);
+        }
+    }, [initialWebsiteConfig, getMockConfigCategory]);
 
 
     // Helper function to show toast
@@ -345,7 +345,7 @@ useEffect(() => {
                                 src={currentEditConfig.config_value}
                                 alt="Preview"
                                 onError={(e) => {
-                                  e.currentTarget.src = '/no_img.png';
+                                    e.currentTarget.src = '/no_img.png';
                                 }}
                             />
                         </div>
@@ -437,7 +437,7 @@ useEffect(() => {
                                     src={config.config_value}
                                     alt="Preview"
                                     onError={(e) => {
-                                      e.currentTarget.src = '/no_img.png';
+                                        e.currentTarget.src = '/no_img.png';
                                     }}
                                 />
                             </div>
@@ -528,9 +528,12 @@ useEffect(() => {
                 {isEditModalOpen && currentEditConfig && (
                     <div className="modal" onClick={closeModal}>
                         <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                            <span className="close-modal" onClick={closeModal}>&times;</span>
+
                             <div className="modal-header">
-                                <h2 className="modal-title">Edit Configuration</h2>
+                                <div className="flex reverse">
+                                    <span className="close-modal" onClick={closeModal}>&times;</span>
+                                    <h2 className="modal-title">Edit Configuration</h2>
+                                </div>
                                 <p className="modal-subtitle">{currentEditConfig.config_description}</p>
                             </div>
                             <form className="config-form" onSubmit={handleSaveSingleConfig}>
@@ -563,9 +566,12 @@ useEffect(() => {
                 {isCategoryModalOpen && (
                     <div className="modal" onClick={closeModal}>
                         <div className="modal-content large" onClick={(e) => e.stopPropagation()}>
-                            <span className="close-modal" onClick={closeModal}>&times;</span>
+
                             <div className="modal-header">
-                                <h2 className="modal-title">Edit {configCategories[currentCategory as keyof typeof configCategories]}</h2>
+                                <div className="flex reverse">
+                                    <span className="close-modal" onClick={closeModal}>&times;</span>
+                                    <h2 className="modal-title">Edit {configCategories[currentCategory as keyof typeof configCategories]}</h2>
+                                </div>
                                 <p className="modal-subtitle">Edit all settings in this category at once</p>
                             </div>
                             <form className="category-form" onSubmit={handleSaveCategoryConfigs}>
