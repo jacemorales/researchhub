@@ -5,6 +5,7 @@ import { lazy, Suspense } from "react";
 // Lazy load components //
 const UserHome = lazy(() => import("./user/Home"));
 const Marketplace = lazy(() => import("./user/pages/Marketplace"));
+const FileDownload = lazy(() => import("./user/pages/FileDownload"));
 const PaymentScriptLoader = lazy(() => import("./payments/PaymentScriptLoader"));
 
 const Admin = lazy(() => import("./admin/Admin"));
@@ -27,6 +28,7 @@ const AppRoutes = () => {
           {/* User Routes */}
           <Route path="/user" element={<UserHome />} />
           <Route path="/user/marketplace" element={<Marketplace />} />
+          <Route path="/user/file" element={<FileDownload />} />
 
           {/* Payment Route */}
           <Route path="/payments/*" element={<PaymentScriptLoader />} />

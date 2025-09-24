@@ -242,8 +242,8 @@ function sendFileEmail($data) {
     // Get site configuration
     $site_name = getConfig('SITE_NAME') ?? 'Research Hub';
     $contact_email = getConfig('CONTACT_EMAIL') ?? MAIL_FROM_ADDRESS;
-    $base_url = rtrim(VITE_API_BASE_URL, '/');
-    $download_link = "{$base_url}/download_file.php?token={$download_token}";
+    $base_url = rtrim(VITE_API_USE_URL, '/');
+    $download_link = "{$base_url}/user/file?access={$download_token}";
 
     // Format expiry date for display
     $expiry_date_formatted = date("F j, Y, g:i a", strtotime($link_expires));
@@ -260,9 +260,11 @@ function sendFileEmail($data) {
             .header { background: #28a745; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
             .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 8px 8px; }
             .file-details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
-            .download-btn { display: inline-block; background: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+            .download-btn { display: inline-block; background: #007bff;padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
             .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
             .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+            a.download-btn { color: #fff; }
+            a.download-btn:hover { background: #0056b3; }
         </style>
     </head>
     <body>
@@ -306,9 +308,13 @@ function sendFileEmail($data) {
     ";
 
     // Send using centralized function
-    $result = sendEmailWithPHPMailer($recipient_email, $customer_name, $subject, $message);
-    
-    echo json_encode($result);
+    //$result = sendEmailWithPHPMailer($recipient_email, $customer_name, $subject, $message);
+     $result = [
+        'success' => true,
+        'message' => 'Email sending is disabled. Link generated.',
+        'download_link' => $download_link
+    ];
+    echo json_encode($result, JSON_UNESCAPED_SLASHES);
 }
 
 /**

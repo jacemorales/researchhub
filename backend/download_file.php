@@ -83,13 +83,18 @@ try {
     $updateStmt = $pdo->prepare("UPDATE payments SET downloads = ? WHERE id = ?");
     $updateStmt->execute([$updatedDownloads, $payment['id']]);
 
-    // 9. Redirect the user to the presigned URL
-    header('Location: ' . $presignedUrl, true, 302);
+    // 9. Return the presigned URL in a JSON response
+    echo json_encode([
+        'success' => true,
+        'presigned_url' => $presignedUrl
+    ]);
     exit;
 
 } catch (Exception $e) {
     http_response_code(400);
-    // You can create a more user-friendly error page if you want
-    echo json_encode(['error' => $e->getMessage()]);
+    echo json_encode([
+        'success' => false,
+        'error' => $e->getMessage()
+    ]);
 }
 ?>

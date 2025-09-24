@@ -862,7 +862,7 @@ export default function Admin() {
                     }}
                   />
                 )}
-                <h3>Welcome, {userProfile.name}</h3>
+                <h3>Welcome,<br />{userProfile.name}</h3>
                 <p>{userProfile.email}</p>
               </div>
               <div className="welcome-actions">

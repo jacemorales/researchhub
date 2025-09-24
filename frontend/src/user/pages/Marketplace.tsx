@@ -9,6 +9,7 @@ import ModalPreview from "../components/ModalPreview";
 import ModalPurchase from "../../payments/ModalPurchase";
 import Header from "../components/Header";
 import type {AcademicFile} from "../../hooks/contexts/DataContext";
+import Footer from "../components/Footer";
 
 
 const Marketplace = () => {
@@ -191,7 +192,7 @@ const Marketplace = () => {
         </div>
 
         {/* Location debug info */}
-        <div className="location-debug" style={{ marginTop: '16px', fontSize: '14px' }}>
+        <div className="location-debug" hidden>
           <strong>Location Debug:</strong>
           <div>Country: {user_location?.country || 'Unknown'}</div>
           <div>City: {user_location?.city || 'Unknown'}</div>
@@ -245,6 +246,9 @@ const Marketplace = () => {
           onClose={hideToast}
         />
       )}
+
+
+      <Footer />
     </>
   );
 };
