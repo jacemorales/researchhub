@@ -32,7 +32,7 @@ define('DB_PASS', $_ENV['DB_PASS']);
 // Base URL
 define('VITE_API_BASE_URL', $_ENV['VITE_API_BASE_URL']);
 define('VITE_API_USE_URL', $_ENV['VITE_API_USE_URL']);
-define('VITE_LOCATION_API_KEYy', $_ENV['VITE_LOCATION_API_KEY']);
+define('VITE_LOCATION_API_KEY', $_ENV['VITE_LOCATION_API_KEY']);
 
 // Cloudflare R2 Configuration
 define('R2_ACCOUNT_ID', $_ENV['R2_ACCOUNT_ID']);

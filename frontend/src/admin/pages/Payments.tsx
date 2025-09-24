@@ -595,14 +595,14 @@ const Payments: React.FC = () => {
                                                 </span>
                                             </td>
                                             <td>
-                                                {filteredPayments.map((payment) => {
+                                                {(() => {
                                                     const fileInfo = getFileInfoByDriveFileId(String(payment.drive_file_id));
                                                     return (
-                                                        <span className={`status ${fileInfo ? (fileInfo.r2_upload_status || '') : ''}`}>
-                                                            {/* {fileInfo ? formatStatus(fileInfo.r2_upload_status) : ''} */}
+                                                        <span className={`status ${fileInfo ? (fileInfo.r2_upload_status || 'pending') : 'pending'}`}>
+                                                            {fileInfo ? formatStatus(fileInfo.r2_upload_status) : 'N/A'}
                                                         </span>
                                                     );
-                                                })}
+                                                })()}
                                             </td>
                                             <td>
                                                 <span className="date">

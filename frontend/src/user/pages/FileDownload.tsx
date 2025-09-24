@@ -5,21 +5,22 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const FileDownload: React.FC = () => {
     const [searchParams] = useSearchParams();
+    const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+    const [message, setMessage] = useState<string>('Validating your download link...');
     const [error, setError] = useState<string | null>(null);
-    const [loading, setLoading] = useState<boolean>(true);
-    const [message, setMessage] = useState<string>('Preparing your download...');
 
     useEffect(() => {
         const downloadFile = async () => {
             const token = searchParams.get('access');
 
             if (!token) {
-                setError('No access token provided. Please check the link.');
-                setLoading(false);
+                setError('No access token provided. Please check the link and try again.');
+                setStatus('error');
                 return;
             }
 
             try {
+                setMessage('Preparing your file, please wait...');
                 const response = await fetch(`${API_BASE_URL}/backend/download_file.php?token=${token}`);
 
                 if (!response.ok) {
@@ -30,168 +31,218 @@ const FileDownload: React.FC = () => {
                 const data = await response.json();
 
                 if (data.success && data.presigned_url) {
-                    setMessage('Your download will begin shortly...');
-                    setLoading(false);
+                    setMessage('Redirecting you to a secure download link...');
+                    setStatus('success');
+                    // Redirect to the presigned URL to start the download
                     window.location.href = data.presigned_url;
                 } else {
-                    throw new Error(data.error || 'Invalid response from server.');
+                    throw new Error(data.error || 'The server returned an invalid response. Please try again later.');
                 }
 
             } catch (err) {
-                const message = err instanceof Error ? err.message : 'An unknown error occurred.';
-                setError(message);
-                setLoading(false);
+                const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred. Please contact support.';
+                setError(errorMessage);
+                setStatus('error');
             }
         };
 
-        const timer = setTimeout(() => {
-            downloadFile();
-        }, 1500);
+        // Delay to allow the user to read the initial message
+        const timer = setTimeout(downloadFile, 2000);
 
         return () => clearTimeout(timer);
     }, [searchParams]);
 
+    const StatusIcon: React.FC<{ status: 'loading' | 'success' | 'error' }> = ({ status }) => {
+        switch (status) {
+            case 'loading':
+                return (
+                    <svg className="spinner" viewBox="0 0 50 50">
+                        <circle className="path" cx="25" cy="25" r="20" fill="none" strokeWidth="5"></circle>
+                    </svg>
+                );
+            case 'success':
+                return (
+                    <div className="success-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                    </div>
+                );
+            case 'error':
+                return (
+                    <div className="error-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                    </div>
+                );
+            default:
+                return null;
+        }
+    };
+
+    const getStatusInfo = () => {
+        switch (status) {
+            case 'loading':
+                return { title: 'Preparing Download', color: '#3498db' };
+            case 'success':
+                return { title: 'Success!', color: '#2ecc71' };
+            case 'error':
+                return { title: 'Download Failed', color: '#e74c3c' };
+            default:
+                return { title: 'Status', color: '#333' };
+        }
+    };
+
+    const { title, color } = getStatusInfo();
+
     return (
         <>
             <div className="file-download-container">
-                <div className="file-download-box">
-                    {loading && (
-                        <div className="loading-section">
-                            <div className="spinner"></div>
-                            <h2>Loading...</h2>
-                            <p>{message}</p>
-                        </div>
-                    )}
-
-                    {!loading && error && (
-                        <div className="error-section">
-                            <div className="error-icon">
-                                <i className="fas fa-exclamation-triangle"></i>
-                            </div>
-                            <h2>Download Failed</h2>
-                            <p className="error-message">{error}</p>
-                            <a href="/" className="home-link">Go to Homepage</a>
-                        </div>
-                    )}
-
-                    {!loading && !error && (
-                        <div className="success-section">
-                            <div className="success-icon">
-                                <i className="fas fa-check-circle"></i>
-                            </div>
-                            <h2>Success!</h2>
-                            <p>{message}</p>
-                            <p>If your download does not start automatically, please refresh the page.</p>
-                        </div>
-                    )}
+                <div className="file-download-card">
+                    <div className="card-header" style={{ backgroundColor: color }}>
+                        <StatusIcon status={status} />
+                    </div>
+                    <div className="card-body">
+                        <h2 className="card-title" style={{ color }}>{title}</h2>
+                        <p className="card-message">
+                            {status === 'error' ? error : message}
+                        </p>
+                        {status === 'success' && (
+                            <p className="card-sub-message">
+                                Your download should start automatically. If it doesn't, please try refreshing the page.
+                            </p>
+                        )}
+                        {status === 'error' && (
+                            <a href="/" className="home-link">
+                                Return to Homepage
+                            </a>
+                        )}
+                    </div>
                 </div>
+                <footer className="page-footer">
+                    <p>&copy; {new Date().getFullYear()} Research Hub. All Rights Reserved.</p>
+                </footer>
             </div>
 
             <style>{`
-                *{margin:0;padding:0;box-sizing:border-box;}
+                @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
 
-                body{
+                body, html {
                     margin: 0;
                     padding: 0;
-                    box-sizing: border-box;
-                    font-family: system-ui, calibri, sans-serif;
+                    height: 100%;
+                    font-family: 'Poppins', sans-serif;
+                    background-color: #f0f2f5;
                 }
 
                 .file-download-container {
                     display: flex;
+                    flex-direction: column;
                     justify-content: center;
                     align-items: center;
                     height: 100vh;
-                    background-color: #f4f7f6;
+                    padding: 20px;
                 }
 
-                .file-download-box {
-                    text-align: center;
-                    padding: 40px;
+                .file-download-card {
                     background-color: #ffffff;
-                    box-shadow: 0px 0px 20px rgb(117 117 117 / 48%);
-                    border-radius: 10px;
-                    width: 500px;
+                    border-radius: 16px;
+                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+                    width: 100%;
+                    max-width: 450px;
+                    text-align: center;
+                    overflow: hidden;
+                    transform: translateY(-20px);
+                    animation: floatUp 0.5s ease-out forwards;
+                }
+                
+                @keyframes floatUp {
+                    to {
+                        transform: translateY(0);
+                    }
                 }
 
-                /* Loading Section */
-                .loading-section .spinner {
-                    border: 6px solid #f3f3f3;
-                    border-top: 6px solid #3498db;
-                    border-radius: 50%;
-                    width: 50px;
-                    height: 50px;
-                    animation: spin 1s linear infinite;
-                    margin: 0 auto 20px;
+                .card-header {
+                    padding: 40px 20px;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    transition: background-color 0.3s ease;
                 }
 
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
+                .spinner {
+                    animation: rotate 2s linear infinite;
+                    width: 60px;
+                    height: 60px;
+                }
+                .spinner .path {
+                    stroke: #fff;
+                    stroke-linecap: round;
+                    animation: dash 1.5s ease-in-out infinite;
+                }
+                @keyframes rotate { 100% { transform: rotate(360deg); } }
+                @keyframes dash {
+                    0% { stroke-dasharray: 1, 150; stroke-dashoffset: 0; }
+                    50% { stroke-dasharray: 90, 150; stroke-dashoffset: -35; }
+                    100% { stroke-dasharray: 90, 150; stroke-dashoffset: -124; }
                 }
 
-                .loading-section h2 {
-                    color: #333;
-                    font-size: 24px;
+                .success-icon svg, .error-icon svg {
+                    width: 60px;
+                    height: 60px;
+                    stroke: #fff;
+                }
+
+                .card-body {
+                    padding: 30px;
+                }
+
+                .card-title {
+                    font-size: 28px;
+                    font-weight: 600;
+                    margin: 0 0 15px;
+                    transition: color 0.3s ease;
+                }
+
+                .card-message {
+                    font-size: 16px;
+                    color: #555;
+                    line-height: 1.6;
                     margin-bottom: 10px;
                 }
-
-                .loading-section p {
-                    color: #666;
-                    font-size: 16px;
+                
+                .card-sub-message {
+                    font-size: 14px;
+                    color: #888;
                 }
 
-                
-
                 .home-link {
-                    padding: 15px 25px;
+                    display: inline-block;
+                    margin-top: 25px;
+                    padding: 12px 30px;
                     background-color: #3498db;
                     color: #ffffff;
                     text-decoration: none;
-                    display: flex;
-                    text-align: center;
-                    justify-content: center;
-                    line-height: 1;
-                    border-radius: 10px;
+                    border-radius: 8px;
                     font-size: 16px;
                     font-weight: 600;
-                    transition: background-color 0.3s ease;
+                    transition: background-color 0.3s ease, transform 0.2s ease;
                 }
 
                 .home-link:hover {
                     background-color: #2980b9;
+                    transform: translateY(-2px);
                 }
 
-                /* Error/Success Section */
-                .error-section .error-icon,
-                .error-section h2 {
-                    color: #e74c3c;
-                }
-
-                .success-section .success-icon,
-                .success-section h2 {
-                    color: #2ecc71;
-                }
-
-                .error-section .error-icon,
-                .success-section .success-icon{
-                    font-size: 50px;
-                }
-
-                .error-section h2,
-                .success-section h2 {
-                    font-size: 24px;
-                }
-
-                .error-section .error-message {color: #555;}
-                .success-section p {color: #666;}
-
-                .error-section .error-message,
-                .success-section p {
-                    font-size: 16px;
-                    line-height: 1.5;
-                    margin: 5px 0 20px 0;
-                    font-weight: 500;
+                .page-footer {
+                    position: absolute;
+                    bottom: 20px;
+                    color: #aaa;
+                    font-size: 14px;
                 }
             `}</style>
         </>

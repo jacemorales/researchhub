@@ -1,22 +1,13 @@
 <?php
 // db_fetch.php - Fetches all data for the frontend
 
-if (isset($_SERVER['HTTP_ORIGIN'])) {
-    // Allow only your frontend domain
-    $allowed_origins = [
-        'https://researchhubb.netlify.app',
-        'http://localhost:5173', // for local development
-        'http://127.0.0.1:5173'
-    ];
-
-    if (in_array($_SERVER['HTTP_ORIGIN'], $allowed_origins)) {
-        header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
-        header("Access-Control-Allow-Credentials: true");
-        header("Content-Type: application/json");
-        header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-        header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-    }
-}
+// Include the centralized configuration
+require_once __DIR__ . '/config.php';
+header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
+header("Access-Control-Allow-Credentials: true");
+header("Content-Type: application/json");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 
 // Handle preflight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -25,9 +16,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 //header("Access-Control-Allow-Headers: Expires, Cache-Control, Pragma, Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
-
-// Include the centralized configuration
-require_once __DIR__ . '/config.php';
 
 class DatabaseFetcher {
     private $pdo;

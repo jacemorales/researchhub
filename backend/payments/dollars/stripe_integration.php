@@ -3,8 +3,9 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Set CORS headers first, before any output
-header('Access-Control-Allow-Origin: *');
+
+// Now include other files
+require_once __DIR__ . '/../../config.php';
 header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 header('Content-Type: application/json');
@@ -15,8 +16,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-// Now include other files
-require_once __DIR__ . '/../../config.php';
 
 class StripeIntegration {
     private $secretKey;

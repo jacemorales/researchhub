@@ -61,12 +61,15 @@ try {
         'use_path_style_endpoint' => true,
     ]);
 
-    // Extract the key from the R2 public URL
-    $r2Key = str_replace(R2_PUBLIC_URL . '/', '', $fileInfo['r2_url']);
+    // Extract the key from the R2 public URL and decode it
+    $r2Key = urldecode(str_replace(R2_PUBLIC_URL . '/', '', $fileInfo['r2_url']));
 
+    // Add ResponseContentDisposition to force download
+    $fileName = $fileInfo['file_name'] ?? 'download';
     $command = $s3Client->getCommand('GetObject', [
         'Bucket' => R2_BUCKET_NAME,
         'Key' => $r2Key,
+        'ResponseContentDisposition' => 'attachment; filename="' . $fileName . '"'
     ]);
 
     // Create a presigned request for 5 minutes

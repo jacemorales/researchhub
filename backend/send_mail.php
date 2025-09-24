@@ -1,9 +1,11 @@
 <?php
 // send_mail.php - Email sending endpoint
 
-// Set headers for JSON response and CORS
+
+// Include the centralized configuration
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/vendor/autoload.php';
 header("Content-Type: application/json");
-header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Credentials: true");
@@ -20,10 +22,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'error' => 'Method not allowed. Only POST is supported.']);
     exit();
 }
-
-// Include the centralized configuration
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/vendor/autoload.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
@@ -127,79 +125,73 @@ function sendReceiptEmail($data) {
     }
 
     // Get site configuration
-    $site_name = getConfig('SITE_NAME') ?? 'RESEARCH HUB ';
+    $site_name = getConfig('SITE_NAME') ?? 'Research Hub';
     $contact_email = getConfig('CONTACT_EMAIL');
+    $logo_url = getConfig('LOGO_URL'); // Fallback logo
 
     // Create receipt email content
     $subject = "Payment Receipt - {$site_name}";
     
     $message = "
+    <!DOCTYPE html>
     <html>
     <head>
+        <meta charset='UTF-8'>
+        <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+        <title>{$subject}</title>
         <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: #007bff; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-            .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 8px 8px; }
-            .receipt-details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
-            .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
-            .detail-row:last-child { border-bottom: none; font-weight: bold; }
-            .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+            @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+            body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background-color: #f4f7f6; color: #333; }
+            .email-container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+            .email-header { background-color: #4A90E2; color: white; padding: 30px; text-align: center; }
+            .email-header img { max-width: 150px; margin-bottom: 15px; }
+            .email-header h1 { margin: 0; font-size: 28px; font-weight: 600; }
+            .email-body { padding: 30px; }
+            .email-body p { font-size: 16px; line-height: 1.7; margin: 0 0 15px; }
+            .receipt-details { border: 1px solid #e8e8e8; border-radius: 8px; margin: 25px 0; }
+            .receipt-details h3 { font-size: 20px; margin: 0; padding: 15px 20px; background-color: #f9f9f9; border-bottom: 1px solid #e8e8e8; }
+            .detail-row { display: flex; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid #e8e8e8; align-items: center; }
+            .detail-row:last-child { border-bottom: none; }
+            .detail-row span { font-size: 16px; }
+            .detail-row span:last-child { font-weight: 600; }
+            .email-footer { background-color: #f4f7f6; padding: 20px; text-align: center; color: #888; font-size: 14px; }
+            .email-footer a { color: #4A90E2; text-decoration: none; }
         </style>
     </head>
     <body>
-        <div class='container'>
-            <div class='header'>
-                <h1>Payment Receipt</h1>
-                <p>Thank you for your purchase!</p>
+        <div class='email-container'>
+            <div class='email-header'>
+                <img src='{$logo_url}' alt='{$site_name} Logo'>
+                <h1>Payment Successful</h1>
             </div>
-            <div class='content'>
+            <div class='email-body'>
                 <p>Dear {$recipient_name},</p>
-                
-                <p>Thank you for your purchase! This email confirms that your payment has been processed successfully.</p>
-                
+                <p>Thank you for your purchase! This email confirms that your payment has been processed successfully. Here are the details of your transaction:</p>
                 <div class='receipt-details'>
                     <h3>Payment Details</h3>
-                    <div class='detail-row'>
-                        <span>Payment ID:</span>
-                        <span>{$payment_id}</span>
-                    </div>
-                    <div class='detail-row'>
-                        <span>Amount:</span>
-                        <span>{$currency} " . number_format($amount, 2) . "</span>
-                    </div>
-                    <div class='detail-row'>
-                        <span>Payment Method:</span>
-                        <span>{$payment_method}</span>
-                    </div>
-                    <div class='detail-row'>
-                        <span>Date:</span>
-                        <span>" . date('F j, Y \a\t g:i A') . "</span>
-                    </div>
+                    <div class='detail-row'><span>Payment ID:</span> <span>{$payment_id}</span></div>
+                    <div class='detail-row'><span>Amount:</span> <span>{$currency} " . number_format($amount, 2) . "</span></div>
+                    <div class='detail-row'><span>Payment Method:</span> <span>{$payment_method}</span></div>
+                    <div class='detail-row'><span>Date:</span> <span>" . date('F j, Y, g:i A') . "</span></div>
                 </div>
-                
-                <p>Your file will be sent to you shortly. If you have any questions or concerns, please don't hesitate to contact us.</p>
-                
-                <p>Best regards,<br>
-                The {$site_name} Team</p>
+                <p>Your file(s) will be sent in a separate email shortly. If you have any questions, please don't hesitate to contact our support team.</p>
+                <p>Best regards,<br>The {$site_name} Team</p>
             </div>
-            <div class='footer'>
-                <p>This is an automated receipt. Please keep this for your records.</p>
-                <p>Contact us: {$contact_email}</p>
+            <div class='email-footer'>
+                <p>&copy; " . date('Y') . " {$site_name}. All Rights Reserved.</p>
+                <p>Need help? Contact us at <a href='mailto:{$contact_email}'>{$contact_email}</a></p>
             </div>
         </div>
     </body>
     </html>
     ";
 
-    // ✅ Send using centralized function
     $result = sendEmailWithPHPMailer($recipient_email, $recipient_name, $subject, $message);
-    
     echo json_encode($result);
 }
 
 function sendFileEmail($data) {
-    // Validate required fields for file email
+    // Validate required fields
     $required_fields = ['recipient_email', 'customer_name', 'file_name', 'link_expires', 'max_downloads', 'payment_id'];
     foreach ($required_fields as $field) {
         if (!isset($data[$field]) || (empty($data[$field]) && $data[$field] !== 0)) {
@@ -214,21 +206,13 @@ function sendFileEmail($data) {
     $max_downloads = (int)$data['max_downloads'];
     $payment_id = (int)$data['payment_id'];
 
-    // Validate email
     if (!filter_var($recipient_email, FILTER_VALIDATE_EMAIL)) {
         throw new Exception('Invalid recipient email address');
     }
 
-    // Generate a unique download token
     $download_token = bin2hex(random_bytes(32));
+    $downloads_data = json_encode(['max_downloads' => $max_downloads, 'download_count' => 0]);
 
-    // Prepare download data for database
-    $downloads_data = json_encode([
-        'max_downloads' => $max_downloads,
-        'download_count' => 0
-    ]);
-
-    // Update the payment record with the download token and expiry
     $pdo = getPDOConnection();
     $stmt = $pdo->prepare(
         "UPDATE payments SET download_token = ?, file_access_expires_at = ?, downloads = ? WHERE id = ?"
@@ -239,81 +223,72 @@ function sendFileEmail($data) {
         throw new Exception("Failed to update payment record with ID: {$payment_id}");
     }
 
-    // Get site configuration
     $site_name = getConfig('SITE_NAME') ?? 'Research Hub';
     $contact_email = getConfig('CONTACT_EMAIL') ?? MAIL_FROM_ADDRESS;
     $base_url = rtrim(VITE_API_USE_URL, '/');
     $download_link = "{$base_url}/user/file?access={$download_token}";
+    $logo_url = getConfig('LOGO_URL') ?? 'https://example.com/logo.png';
 
-    // Format expiry date for display
     $expiry_date_formatted = date("F j, Y, g:i a", strtotime($link_expires));
-
-    // Create file email content
-    $subject = "Your File is Ready - {$site_name}";
+    $subject = "Your Download is Ready - {$site_name}";
     
     $message = "
+    <!DOCTYPE html>
     <html>
     <head>
+        <meta charset='UTF-8'>
+        <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+        <title>{$subject}</title>
         <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: #28a745; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-            .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 8px 8px; }
-            .file-details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
-            .download-btn { display: inline-block; background: #007bff;padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-            .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
-            .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
-            a.download-btn { color: #fff; }
-            a.download-btn:hover { background: #0056b3; }
+            @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+            body { margin: 0; padding: 0; font-family: 'Poppins', sans-serif; background-color: #f4f7f6; color: #333; }
+            .email-container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+            .email-header { background-color: #28a745; color: white; padding: 30px; text-align: center; }
+            .email-header img { max-width: 150px; margin-bottom: 15px; }
+            .email-header h1 { margin: 0; font-size: 28px; font-weight: 600; }
+            .email-body { padding: 30px; }
+            .email-body p { font-size: 16px; line-height: 1.7; margin: 0 0 15px; }
+            .file-details { border: 1px solid #e8e8e8; border-radius: 8px; margin: 25px 0; padding: 20px; background-color: #f9f9f9; }
+            .file-details p { margin: 0 0 10px; }
+            .file-details p:last-child { margin-bottom: 0; }
+            .download-button-container { text-align: center; margin: 30px 0; }
+            a.download-btn { display: inline-block; background-color: #007bff; color: #ffffff; padding: 15px 35px; font-size: 18px; font-weight: 600; text-decoration: none; border-radius: 8px; transition: background-color 0.3s ease; }
+            .download-btn:hover { background-color: #0056b3; }
+            .warning { background: #fff3cd; border-left: 5px solid #ffeeba; padding: 15px; margin: 25px 0; font-size: 15px; }
         </style>
     </head>
     <body>
-        <div class='container'>
-            <div class='header'>
+        <div class='email-container'>
+            <div class='email-header'>
+                <img src='{$logo_url}' alt='{$site_name} Logo'>
                 <h1>Your File is Ready!</h1>
-                <p>Download your purchased file below</p>
             </div>
-            <div class='content'>
+            <div class='email-body'>
                 <p>Dear {$customer_name},</p>
-                
-                <p>Great news! Your file is now ready for download. Thank you for your purchase!</p>
-                
+                <p>Great news! Your file is now ready for download. Thank you for your purchase.</p>
                 <div class='file-details'>
-                    <h3>File Details</h3>
                     <p><strong>File Name:</strong> {$file_name}</p>
                     <p><strong>Max Downloads:</strong> {$max_downloads}</p>
                     <p><strong>Link Expires:</strong> {$expiry_date_formatted}</p>
                 </div>
-                
-                <div style='text-align: center;'>
-                    <a href='{$download_link}' class='download-btn'>Download File</a>
+                <div class='download-button-container'>
+                    <a href='{$download_link}' class='download-btn'>Download Your File</a>
                 </div>
-                
                 <div class='warning'>
-                    <strong>Important:</strong> This download link is valid for {$max_downloads} download(s) and will expire on {$expiry_date_formatted}. Please download your file before then.
+                    <strong>Important:</strong> For security, this link will expire after {$max_downloads} download(s) or on {$expiry_date_formatted}. Please download your file promptly.
                 </div>
-                
-                <p>If you have any issues downloading your file or need assistance, please contact us immediately.</p>
-                
-                <p>Best regards,<br>
-                The {$site_name} Team</p>
+                <p>If you have any issues, please contact us by replying to this email or reaching out to <a href='mailto:{$contact_email}'>{$contact_email}</a>.</p>
+                <p>Best regards,<br>The {$site_name} Team</p>
             </div>
-            <div class='footer'>
-                <p>This link is valid until {$expiry_date_formatted}</p>
-                <p>Contact us: {$contact_email}</p>
+            <div class='email-footer'>
+                <p>&copy; " . date('Y') . " {$site_name}. All Rights Reserved.</p></div>
             </div>
         </div>
     </body>
     </html>
     ";
 
-    // Send using centralized function
     $result = sendEmailWithPHPMailer($recipient_email, $customer_name, $subject, $message);
-    //  $result = [
-    //     'success' => true,
-    //     'message' => 'Email sending is disabled. Link generated.',
-    //     'download_link' => $download_link
-    // ];
     echo json_encode($result, JSON_UNESCAPED_SLASHES);
 }
 

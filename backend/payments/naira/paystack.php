@@ -4,23 +4,9 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 
-// Start output buffering
-ob_start();
+ob_start(); // Start output buffering
 
-// Set CORS headers
-$allowedOrigins = [
-    'http://localhost:5173',
-    'https://researchhubb.netlify.app'
-];
-
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if (in_array($origin, $allowedOrigins)) {
-    header("Access-Control-Allow-Origin: $origin");
-    header("Access-Control-Allow-Credentials: true");
-} else {
-    header('Access-Control-Allow-Origin: *');
-}
-
+require_once __DIR__ . '/../../config.php';
 header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, Cache-Control');
 
@@ -32,7 +18,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // Include required files
 require_once __DIR__ . '/../../vendor/autoload.php';
-require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../paymentStructure.php';
 
 // Initialize PDO connection
