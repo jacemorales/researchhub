@@ -483,16 +483,16 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
   const getPaymentUrl = useCallback(() => {
     switch (paymentType) {
       case 'naira':
-        return `${BASE_URI}/backend/payments/naira/paystack.php?action=initialize`;
+        return `${BASE_URI}/payments/naira/paystack.php?action=initialize`;
       case 'dollar':
         if (paymentMethod === 'paypal') {
-          return `${BASE_URI}/backend/payments/dollars/paypal_integration.php?action=initialize`;
+          return `${BASE_URI}/payments/dollars/paypal_integration.php?action=initialize`;
         }
-        return `${BASE_URI}/backend/payments/dollars/stripe_integration.php?action=initialize`;
+        return `${BASE_URI}/payments/dollars/stripe_integration.php?action=initialize`;
       case 'crypto':
-        return `${BASE_URI}/backend/payments/crypto/nowpayments_integration.php?action=initialize`;
+        return `${BASE_URI}/payments/crypto/nowpayments_integration.php?action=initialize`;
       default:
-        return `${BASE_URI}/backend/payments/dollars/stripe_integration.php?action=initialize`;
+        return `${BASE_URI}/payments/dollars/stripe_integration.php?action=initialize`;
     }
   }, [BASE_URI, paymentType, paymentMethod]);
 
@@ -502,19 +502,19 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     const method = localStorage.getItem('paymentMethod') || paymentMethod;
     
     if (method === 'paystack' || reference.startsWith('RESEARCH_HUB_')) { // Paystack uses the master ref
-        return `${BASE_URI}/backend/payments/naira/paystack.php?action=poll_verify&reference=${reference}`;
+        return `${BASE_URI}/payments/naira/paystack.php?action=poll_verify&reference=${reference}`;
     }
     if (method === 'stripe' || reference.startsWith('STRIPE_')) {
-        return `${BASE_URI}/backend/payments/dollars/stripe_integration.php?action=verify&reference=${reference}`;
+        return `${BASE_URI}/payments/dollars/stripe_integration.php?action=verify&reference=${reference}`;
     }
     if (method === 'paypal' || reference.startsWith('PAYPAL_')) {
-        return `${BASE_URI}/backend/payments/dollars/paypal_integration.php?action=verify&reference=${reference}`;
+        return `${BASE_URI}/payments/dollars/paypal_integration.php?action=verify&reference=${reference}`;
     }
     if (method === 'nowpayments' || reference.startsWith('NOWPAY_')) {
-        return `${BASE_URI}/backend/payments/crypto/nowpayments_integration.php?action=verify&reference=${reference}`;
+        return `${BASE_URI}/payments/crypto/nowpayments_integration.php?action=verify&reference=${reference}`;
     }
     // Default fallback
-    return `${BASE_URI}/backend/payments/naira/paystack.php?action=poll_verify&reference=${reference}`;
+    return `${BASE_URI}/payments/naira/paystack.php?action=poll_verify&reference=${reference}`;
   }, [BASE_URI, paymentMethod]);
 
   // Initialize payment with comprehensive tracking

@@ -46,7 +46,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchInitialData = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/backend/db_fetch.php?skip_location=true`);
+      const res = await fetch(`${API_BASE_URL}/db_fetch.php?skip_location=true`);
       const result = await res.json();
       if (result.success) {
         setWebsiteConfig(result.data.website_config);
@@ -77,7 +77,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
       // Fetch fresh location data silently
       try {
-        const res = await fetch(`${API_BASE_URL}/backend/db_fetch.php?location_only=true`);
+        const res = await fetch(`${API_BASE_URL}/db_fetch.php?location_only=true`);
         const result = await res.json();
         if (result.success && result.data.user_location) {
           setUserLocation(result.data.user_location);

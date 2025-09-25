@@ -418,12 +418,12 @@ export default function Admin() {
             uploadFormData.append('file_name', file_name);
 
             // ✅ DO NOT set Content-Type — browser handles it
-            uploadResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/backend/admin/r2_uploader.php`, {
+            uploadResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/r2_uploader.php`, {
               method: 'POST',
               body: uploadFormData,
             });
           } else if (uploadMode === 'drive') {
-            uploadResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/backend/admin/r2_uploader.php?action=drive_file_upload`, {
+            uploadResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/r2_uploader.php?action=drive_file_upload`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

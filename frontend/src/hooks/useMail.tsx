@@ -37,7 +37,7 @@ export const useMail = () => {
     setSuccess(null);
 
     try {
-      const url = `${API_BASE_URL}/backend/send_mail.php?email=${options.email}`;
+      const url = `${API_BASE_URL}/send_mail.php?email=${options.email}`;
       
       const response = await fetch(url, {
         method: "POST",

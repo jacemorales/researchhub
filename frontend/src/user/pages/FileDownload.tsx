@@ -21,7 +21,7 @@ const FileDownload: React.FC = () => {
 
             try {
                 setMessage('Preparing your file, please wait...');
-                const response = await fetch(`${API_BASE_URL}/backend/download_file.php?token=${token}`);
+                const response = await fetch(`${API_BASE_URL}/download_file.php?token=${token}`);
 
                 if (!response.ok) {
                     const errorData = await response.json();
