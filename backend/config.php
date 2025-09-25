@@ -25,47 +25,47 @@ try {
 }
 
 // Database Configuration
-define('DB_HOST', $_ENV['DB_HOST'] ?? getenv('DB_HOST'));
-define('DB_NAME', $_ENV['DB_NAME'] ?? getenv('DB_NAME'));
-define('DB_USER', $_ENV['DB_USER'] ?? getenv('DB_USER'));
-define('DB_PASS', $_ENV['DB_PASS'] ?? getenv('DB_PASS'));
+define('DB_HOST', $_ENV['DB_HOST']);
+define('DB_NAME', $_ENV['DB_NAME']);
+define('DB_USER', $_ENV['DB_USER']);
+define('DB_PASS', $_ENV['DB_PASS']);
 
 // Base URL
-define('VITE_API_BASE_URL', $_ENV['VITE_API_BASE_URL'] ?? getenv('VITE_API_BASE_URL'));
-define('VITE_API_USE_URL', $_ENV['VITE_API_USE_URL'] ?? getenv('VITE_API_USE_URL'));
-define('VITE_LOCATION_API_KEY', $_ENV['VITE_LOCATION_API_KEY'] ?? getenv('VITE_LOCATION_API_KEY'));
+define('VITE_API_BASE_URL', $_ENV['VITE_API_BASE_URL']);
+define('VITE_API_USE_URL', $_ENV['VITE_API_USE_URL']);
+define('VITE_LOCATION_API_KEY', $_ENV['VITE_LOCATION_API_KEY']);
 
 // Cloudflare R2 Configuration
-define('R2_ACCOUNT_ID', $_ENV['R2_ACCOUNT_ID'] ?? getenv('R2_ACCOUNT_ID'));
-define('R2_ACCESS_KEY_ID', $_ENV['R2_ACCESS_KEY_ID'] ?? getenv('R2_ACCESS_KEY_ID'));
-define('R2_SECRET_ACCESS_KEY', $_ENV['R2_SECRET_ACCESS_KEY'] ?? getenv('R2_SECRET_ACCESS_KEY'));
-define('R2_BUCKET_NAME', $_ENV['R2_BUCKET_NAME'] ?? getenv('R2_BUCKET_NAME'));
-define('R2_PUBLIC_URL', $_ENV['R2_PUBLIC_URL'] ?? getenv('R2_PUBLIC_URL'));
+define('R2_ACCOUNT_ID', $_ENV['R2_ACCOUNT_ID']);
+define('R2_ACCESS_KEY_ID', $_ENV['R2_ACCESS_KEY_ID']);
+define('R2_SECRET_ACCESS_KEY', $_ENV['R2_SECRET_ACCESS_KEY']);
+define('R2_BUCKET_NAME', $_ENV['R2_BUCKET_NAME']);
+define('R2_PUBLIC_URL', $_ENV['R2_PUBLIC_URL']);
 
 // Payment Gateway Configuration
-define('PAYSTACK_SECRET', $_ENV['PAYSTACK_SECRET'] ?? getenv('PAYSTACK_SECRET'));
+define('PAYSTACK_SECRET', $_ENV['PAYSTACK_SECRET']);
 
-define('STRIPE_PUBLISHABLE_KEY', $_ENV['STRIPE_PUBLISHABLE_KEY'] ?? getenv('STRIPE_PUBLISHABLE_KEY'));
-define('STRIPE_SECRET_KEY', $_ENV['STRIPE_SECRET_KEY'] ?? getenv('STRIPE_SECRET_KEY'));
-define('STRIPE_WEBHOOK_SECRET', $_ENV['STRIPE_WEBHOOK_SECRET'] ?? getenv('STRIPE_WEBHOOK_SECRET'));
+define('STRIPE_PUBLISHABLE_KEY', $_ENV['STRIPE_PUBLISHABLE_KEY']);
+define('STRIPE_SECRET_KEY', $_ENV['STRIPE_SECRET_KEY']);
+define('STRIPE_WEBHOOK_SECRET', $_ENV['STRIPE_WEBHOOK_SECRET']);
 
-define('PAYPAL_CLIENT_ID', $_ENV['PAYPAL_CLIENT_ID'] ?? getenv('PAYPAL_CLIENT_ID'));
-define('PAYPAL_CLIENT_SECRET', $_ENV['PAYPAL_CLIENT_SECRET'] ?? getenv('PAYPAL_CLIENT_SECRET'));
-define('PAYPAL_MODE', $_ENV['PAYPAL_MODE'] ?? getenv('PAYPAL_MODE')); // 'sandbox' or 'live'
+define('PAYPAL_CLIENT_ID', $_ENV['PAYPAL_CLIENT_ID']);
+define('PAYPAL_CLIENT_SECRET', $_ENV['PAYPAL_CLIENT_SECRET']);
+define('PAYPAL_MODE', $_ENV['PAYPAL_MODE']); // 'sandbox' or 'live'
 
-define('NOWPAYMENTS_API_KEY', $_ENV['NOWPAYMENTS_API_KEY'] ?? getenv('NOWPAYMENTS_API_KEY'));
-define('NOWPAYMENTS_IPN_SECRET', $_ENV['NOWPAYMENTS_IPN_SECRET'] ?? getenv('NOWPAYMENTS_IPN_SECRET'));
-define('NOWPAYMENTS_CALLBACK_URL', $_ENV['NOWPAYMENTS_CALLBACK_URL'] ?? getenv('NOWPAYMENTS_CALLBACK_URL'));
+define('NOWPAYMENTS_API_KEY', $_ENV['NOWPAYMENTS_API_KEY']);
+define('NOWPAYMENTS_IPN_SECRET', $_ENV['NOWPAYMENTS_IPN_SECRET']);
+define('NOWPAYMENTS_CALLBACK_URL', $_ENV['NOWPAYMENTS_CALLBACK_URL']);
 
 // Mail Configuration
-define('MAIL_DRIVER', $_ENV['MAIL_DRIVER'] ?? getenv('MAIL_DRIVER'));
-define('MAIL_HOST', $_ENV['MAIL_HOST'] ?? getenv('MAIL_HOST'));
-define('MAIL_PORT', $_ENV['MAIL_PORT'] ?? getenv('MAIL_PORT'));
-define('MAIL_USERNAME', $_ENV['MAIL_USERNAME'] ?? getenv('MAIL_USERNAME'));
-define('MAIL_PASSWORD', $_ENV['MAIL_PASSWORD'] ?? getenv('MAIL_PASSWORD'));
-define('MAIL_ENCRYPTION', $_ENV['MAIL_ENCRYPTION'] ?? getenv('MAIL_ENCRYPTION'));
-define('MAIL_FROM_ADDRESS', $_ENV['MAIL_FROM_ADDRESS'] ?? getenv('MAIL_FROM_ADDRESS'));
-define('MAIL_FROM_NAME', $_ENV['MAIL_FROM_NAME'] ?? getenv('MAIL_FROM_NAME'));
+define('MAIL_DRIVER', $_ENV['MAIL_DRIVER']);
+define('MAIL_HOST', $_ENV['MAIL_HOST']);
+define('MAIL_PORT', $_ENV['MAIL_PORT']);
+define('MAIL_USERNAME', $_ENV['MAIL_USERNAME']);
+define('MAIL_PASSWORD', $_ENV['MAIL_PASSWORD']);
+define('MAIL_ENCRYPTION', $_ENV['MAIL_ENCRYPTION']);
+define('MAIL_FROM_ADDRESS', $_ENV['MAIL_FROM_ADDRESS']);
+define('MAIL_FROM_NAME', $_ENV['MAIL_FROM_NAME']);
 
 
 // Validate essential configuration
