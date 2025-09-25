@@ -1,9 +1,5 @@
 -- Website Configuration Database Schema
 
--- Create database if not exists
-CREATE DATABASE IF NOT EXISTS research_hub;
-USE research_hub;
-
 -- Drop existing table if exists
 DROP TABLE IF EXISTS website_config;
 
