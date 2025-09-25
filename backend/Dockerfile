@@ -1,7 +1,7 @@
-# Use PHP CLI image
+# Use PHP CLI
 FROM php:8.2-cli
 
-# Install system dependencies
+# Install system dependencies and Composer
 RUN apt-get update && apt-get install -y unzip git curl \
     && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
@@ -11,10 +11,10 @@ WORKDIR /app
 # Copy backend files
 COPY . .
 
-# Install PHP dependencies if composer.json exists
+# Install PHP dependencies
 RUN if [ -f "composer.json" ]; then composer install --no-dev --optimize-autoloader; fi
 
-# Expose port for Railway
+# Expose port matching PORT env
 EXPOSE 8000
 
 # Start PHP server

@@ -1,8 +1,19 @@
-# railway.toml
+[project]
+name = "research-hub-backend"
+
 [build]
-# Tell Railway to use Docker
+# Build using Dockerfile in the same folder
 dockerfile = "Dockerfile"
 
-[start]
-# Command Railway runs after container starts (optional if Docker CMD exists)
+[deploy]
+# Leave empty; Dockerfile CMD handles starting the server
 command = ""
+
+[env]
+# Required environment variables
+PORT = "8000"
+DB_HOST = "mysql.railway.internal"
+DB_PORT = "3306"
+DB_DATABASE = "railway"
+DB_USER = "root"
+DB_PASSWORD = "KKyzcSHJtUkpMcuepVldbLTKvoQcQWUJ"
