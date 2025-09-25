@@ -4,7 +4,8 @@
 // Set CORS headers
 $allowedOrigins = [
     'http://localhost:5173',
-    'https://researchhubb.netlify.app'
+    'https://researchhubb.netlify.app',
+    'https://frontend-frontend-1008.up.railway.app'
 ];
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 if (in_array($origin, $allowedOrigins)) {
