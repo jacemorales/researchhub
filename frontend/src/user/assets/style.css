@@ -810,6 +810,11 @@ nav a:hover::after {
   padding: 0 30px;
   flex: 1;
   overflow-y: auto;
+
+  align-items: center;
+  width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
 .modal-body p {
@@ -1761,6 +1766,8 @@ nav a:hover::after {
 .payment-result p {
   color: #555;
   margin: 8px 0;
+  /* display: flex;
+  flex-direction: column; */
 }
 
 .action-buttons {

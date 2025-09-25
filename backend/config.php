@@ -19,10 +19,7 @@ if (class_exists('Dotenv\Dotenv')) {
 try {
     $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
     $dotenv->load();
-} catch (Throwable $e) {
-    error_log("Could not load .env file: " . $e->getMessage());
-    die("Configuration error: Environment file not loaded.");
-}
+} catch (Throwable $e) {}
 }
 
 
