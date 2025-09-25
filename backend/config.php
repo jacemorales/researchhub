@@ -93,7 +93,7 @@ function getPDOConnection() {
             'success' => false,
             'error' => $error,
             'details' => $e->getMessage() // <-- show real error
-        ]);
+        ], JSON_UNESCAPED_SLASHES);
         exit;
     }
 }
