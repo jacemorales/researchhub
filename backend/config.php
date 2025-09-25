@@ -87,7 +87,7 @@ function getPDOConnection() {
         );
         return $pdo;
     } catch (PDOException $e) {
-        $error = DB_HOST . DB_PORT . DB_NAME . DB_USER . DB_PASS;
+        $error = DB_HOST . ':' . DB_PORT . '/' . DB_NAME . ' - ' . DB_USER . ':' . DB_PASS;
          http_response_code(500);
         echo json_encode([
             'success' => false,
