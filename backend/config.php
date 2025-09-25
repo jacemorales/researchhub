@@ -15,7 +15,13 @@ if (in_array($origin, $allowedOrigins)) {
 // Load Composer's autoloader
 require_once __DIR__ . '/vendor/autoload.php';
 
-// Load environment variables from .env file
+try {
+    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+    $dotenv->load();
+} catch (Throwable $e) {
+    error_log("Could not load .env file: " . $e->getMessage());
+    die("Configuration error: Environment file not loaded.");
+}
 
 
 // Database Configuration
@@ -87,13 +93,12 @@ function getPDOConnection() {
         );
         return $pdo;
     } catch (PDOException $e) {
-        $error = DB_HOST . ':' . DB_PORT . '/' . DB_NAME . ' - ' . DB_USER . ':' . DB_PASS;
-         http_response_code(500);
+        http_response_code(500);
         echo json_encode([
             'success' => false,
-            'error' => $error,
+            'error' => 'Database connection failed',
             'details' => $e->getMessage() // <-- show real error
-        ], JSON_UNESCAPED_SLASHES);
+        ]);
         exit;
     }
 }

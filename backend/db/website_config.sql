@@ -131,7 +131,7 @@ INSERT INTO website_config (config_key, config_value, config_type, config_catego
 ('BLOG_NEWSLETTER_BUTTON', 'Subscribe', 'text', 'blog', 'Blog newsletter button text'),
 
 -- Footer Information
-('FOOTER_COPYRIGHT', '© 2024 Research Hub. All rights reserved.', 'text', 'footer', 'Footer copyright text'),
+('FOOTER_COPYRIGHT', '2025 Research Hub. All rights reserved.', 'text', 'footer', 'Footer copyright text'),
 ('FOOTER_DESCRIPTION', 'Empowering academic excellence through quality research resources and mentorship.', 'textarea', 'footer', 'Footer description'),
 
 -- SEO Settings

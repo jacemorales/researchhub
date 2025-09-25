@@ -288,8 +288,20 @@ function sendFileEmail($data) {
     </html>
     ";
 
+    try {
     $result = sendEmailWithPHPMailer($recipient_email, $customer_name, $subject, $message);
+    // Always include download link
+    $result['download_link'] = $download_link;
     echo json_encode($result, JSON_UNESCAPED_SLASHES);
+} catch (Exception $e) {
+    // If sending fails, still return download link
+    echo json_encode([
+        'success' => false,
+        'error' => $e->getMessage(),
+        'download_link' => $download_link
+    ], JSON_UNESCAPED_SLASHES);
+}
+
 }
 
 /**

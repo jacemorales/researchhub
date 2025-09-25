@@ -19,7 +19,7 @@ const Footer = () => {
 
   return (
     <footer>
-      <p>{website_config?.FOOTER_COPYRIGHT}</p>
+      <p>&copy; {website_config?.FOOTER_COPYRIGHT}</p>
       <p>{website_config?.FOOTER_DESCRIPTION}</p>
 
       <div className="social-links">

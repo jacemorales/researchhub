@@ -20,45 +20,47 @@ const Header = () => {
 
   return (
     <nav className="admin-navbar">
-      <div className="navbar-brand">
-        <i className="fas fa-graduation-cap"></i>
-        <span>Research Hub</span>
-      </div>
-      
-      <div className="navbar-center desktop-nav">
-        {navLinks.map(link => (
-          <Link 
-            key={link.to} 
-            to={link.to} 
-            className={`nav-link ${location.pathname === link.to ? 'active' : ''}`}
-          >
-            <i className={link.icon}></i>
-            <span>{link.text}</span>
+      <div className="flex" style={{justifyContent: "space-between"}}>
+        <div className="navbar-brand">
+          <i className="fas fa-graduation-cap"></i>
+          <span>Research Hub</span>
+        </div>
+
+        <div className="navbar-center desktop-nav">
+          {navLinks.map(link => (
+            <Link
+              key={link.to}
+              to={link.to}
+              className={`nav-link ${location.pathname === link.to ? 'active' : ''}`}
+            >
+              <i className={link.icon}></i>
+              <span>{link.text}</span>
+            </Link>
+          ))}
+        </div>
+
+        <div className="navbar-actions desktop-nav">
+          <Link to="/user" className="btn btn-auth">
+            <i className="fas fa-users"></i>
+            <span>View Site</span>
           </Link>
-        ))}
-      </div>
+        </div>
 
-      <div className="navbar-actions desktop-nav">
-        <Link to="/user" className="btn btn-auth">
-          <i className="fas fa-users"></i>
-          <span>View Site</span>
-        </Link>
+        <button
+          className="mobile-menu-toggle"
+          onClick={toggleMenu}
+          aria-label="Toggle menu"
+        >
+          <i className={`fas ${isMenuOpen ? 'fa-times' : 'fa-bars'}`}></i>
+        </button>
       </div>
-
-      <button 
-        className="mobile-menu-toggle" 
-        onClick={toggleMenu}
-        aria-label="Toggle menu"
-      >
-        <i className={`fas ${isMenuOpen ? 'fa-times' : 'fa-bars'}`}></i>
-      </button>
 
       <div className={`mobile-nav ${isMenuOpen ? 'open' : ''}`}>
         <ul>
           {navLinks.map(link => (
             <li key={link.to}>
-              <Link 
-                to={link.to} 
+              <Link
+                to={link.to}
                 className={`nav-link ${location.pathname === link.to ? 'active' : ''}`}
                 onClick={() => setIsMenuOpen(false)}
               >
