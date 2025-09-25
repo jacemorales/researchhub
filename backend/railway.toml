@@ -1,0 +1,8 @@
+# railway.toml
+[build]
+# Tell Railway to use Docker
+dockerfile = "Dockerfile"
+
+[start]
+# Command Railway runs after container starts (optional if Docker CMD exists)
+command = ""
