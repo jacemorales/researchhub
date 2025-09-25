@@ -1,0 +1,18 @@
+# railway.toml
+
+[services.backend]
+root = "backend"
+build = "composer install --no-dev --optimize-autoloader"
+start = "php -S 0.0.0.0:$PORT -t public"
+env = [
+  "DB_HOST=mysql.railway.internal",
+  "DB_PORT=3306",
+  "DB_DATABASE=railway",
+  "DB_USERNAME=root",
+  "DB_PASSWORD=KKyzcSHJtUkpMcuepVldbLTKvoQcQWUJ"
+]
+
+[services.frontend]
+root = "frontend"
+build = "npm install && npm run build"
+start = "npm run start"
