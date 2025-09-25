@@ -1,8 +1,8 @@
 -- Academic Files Database Schema
 
--- Create database if not exists
-CREATE DATABASE IF NOT EXISTS research_hub;
-USE research_hub;
+-- -- Create database if not exists
+-- CREATE DATABASE IF NOT EXISTS research_hub;
+-- USE research_hub;
 DROP TABLE IF EXISTS academic_files;
 
 -- Create academic_files table

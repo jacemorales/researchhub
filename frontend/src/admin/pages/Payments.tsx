@@ -928,11 +928,11 @@ const Payments: React.FC = () => {
             {isSendFileModalOpen && selectedPayment && (
                 <div className="modal send-file-modal" onClick={(e) => e.target === e.currentTarget && setIsSendFileModalOpen(false)}>
                     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                        <span className="close-modal" onClick={() => setIsSendFileModalOpen(false)}>
-                            &times;
-                        </span>
                         <div className="modal-header">
-                            <h2 className="modal-title">Send File to Customer</h2>
+                            <div className="flex reverse">
+                                <span className="close-modal" onClick={() => setIsSendFileModalOpen(false)}>&times;</span>
+                                <h2 className="modal-title">Send File to Customer</h2>
+                            </div>
                         </div>
                         <div className="modal-body">
                             {(() => {

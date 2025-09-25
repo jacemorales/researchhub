@@ -179,6 +179,14 @@ header {
   font-size: 24px;
 }
 
+.desktop-nav{
+  height: -webkit-fill-available;
+  display: flex;
+  align-items: flex-end;
+  margin-bottom: -5px;
+  justify-content: center;
+}
+
 nav ul {
   display: flex;
   list-style: none;

@@ -1,5 +1,5 @@
 // src/components/DataProvider.tsx
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { DataContext } from "./DataContext";
 import type { WebsiteConfig, AcademicFile, Payment, DataContextType } from "./DataContext";
 
@@ -99,17 +99,19 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     return fetchInitialData();
   }, [fetchInitialData]);
 
+  const value = useMemo(() => ({
+    website_config,
+    academic_files,
+    payments,
+    user_location,
+    currency_code,
+    currency_symbol: currency_code === 'NGN' ? '₦' : '$',
+    setCurrencyCode,
+    refreshData,
+  }), [website_config, academic_files, payments, user_location, currency_code, refreshData]);
+
   return (
-    <DataContext.Provider value={{
-      website_config,
-      academic_files,
-      payments,
-      user_location,
-      currency_code,
-      currency_symbol: currency_code === 'NGN' ? '₦' : '$',
-      setCurrencyCode,
-      refreshData,
-    }}>
+    <DataContext.Provider value={value}>
       {children}
     </DataContext.Provider>
   );

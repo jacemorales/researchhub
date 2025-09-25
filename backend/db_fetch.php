@@ -3,7 +3,6 @@
 
 // Include the centralized configuration
 require_once __DIR__ . '/config.php';
-header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
 header("Access-Control-Allow-Credentials: true");
 header("Content-Type: application/json");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");

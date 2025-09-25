@@ -50,11 +50,95 @@ interface ErrorData {
 
 const PAYSTACK_PERCENTAGE_FEE = 0.015;
 
+// New component for Crypto Payment Options
+const CryptoPaymentOptions = ({ getPrice, getCurrencySymbol, fmt }: { getPrice: () => number, getCurrencySymbol: () => string, fmt: (n: number) => string }) => {
+  const { loading: cryptoLoading, getCryptoPrices, convertUSDToCrypto } = useCryptoPricing();
+
+  useEffect(() => {
+    getCryptoPrices();
+  }, [getCryptoPrices]);
+
+  const formatCryptoAmount = (usdAmount: number, cryptoType: 'bitcoin' | 'solana' | 'tron'): string => {
+    const cryptoAmount = convertUSDToCrypto(usdAmount, cryptoType);
+    if (cryptoType === 'bitcoin') return cryptoAmount.toFixed(8);
+    if (cryptoType === 'solana') return cryptoAmount.toFixed(4);
+    if (cryptoType === 'tron') return cryptoAmount.toFixed(2);
+    return cryptoAmount.toFixed(6);
+  };
+
+  const getCryptoSymbol = (cryptoType: 'bitcoin' | 'solana' | 'tron'): string => {
+    switch (cryptoType) {
+      case 'bitcoin': return 'BTC';
+      case 'solana': return 'SOL';
+      case 'tron': return 'TRX';
+      default: return '';
+    }
+  };
+
+  const totalAmount = getPrice() * (1 + PAYSTACK_PERCENTAGE_FEE);
+
+  return (
+    <>
+      <label className="payment-option crypto-option">
+        <input type="radio" name="payment_method" value="bitcoin" defaultChecked={true} />
+        <div className="payment-card">
+          <div className="flex">
+            <i className="fab fa-bitcoin bitcoin-icon"></i>
+            <span>Bitcoin (BTC)</span>
+          </div>
+          <div className="crypto-info">
+            {cryptoLoading ? (<small>Loading price...</small>) : (
+              <small>
+                {formatCryptoAmount(totalAmount, 'bitcoin')} {getCryptoSymbol('bitcoin')}
+                <br /><span style={{ color: '#666' }}> ({getCurrencySymbol()}{fmt(totalAmount)})</span>
+              </small>
+            )}
+          </div>
+        </div>
+      </label>
+      <label className="payment-option crypto-option">
+        <input type="radio" name="payment_method" value="solana" />
+        <div className="payment-card">
+          <div className="flex">
+            <i className="fas fa-coins solana-icon"></i>
+            <span>Solana (SOL)</span>
+          </div>
+          <div className="crypto-info">
+            {cryptoLoading ? (<small>Loading price...</small>) : (
+              <small>
+                {formatCryptoAmount(totalAmount, 'solana')} {getCryptoSymbol('solana')}
+                <br /><span style={{ color: '#666' }}> ({getCurrencySymbol()}{fmt(totalAmount)})</span>
+              </small>
+            )}
+          </div>
+        </div>
+      </label>
+      <label className="payment-option crypto-option">
+        <input type="radio" name="payment_method" value="tron" />
+        <div className="payment-card">
+          <div className="flex">
+            <i className="fas fa-coins tron-icon"></i>
+            <span>Tron (TRX)</span>
+          </div>
+          <div className="crypto-info">
+            {cryptoLoading ? (<small>Loading price...</small>) : (
+              <small>
+                {formatCryptoAmount(totalAmount, 'tron')} {getCryptoSymbol('tron')}
+                <br /><span style={{ color: '#666' }}> ({getCurrencySymbol()}{fmt(totalAmount)})</span>
+              </small>
+            )}
+          </div>
+        </div>
+      </label>
+    </>
+  );
+};
+
+
 const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
   const BASE_URI = import.meta.env.VITE_API_BASE_URL;
-  const { website_config, currency_code, setCurrencyCode } = useData();
-  const { loading: cryptoLoading, convertUSDToCrypto } = useCryptoPricing();
-
+  const { website_config, currency_code } = useData();
+  
   const [isProcessing, setIsProcessing] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false); // New state for fallback polling
   const [showResult, setShowResult] = useState(false);
@@ -65,10 +149,9 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
   const [autoRetryTimer, setAutoRetryTimer] = useState<NodeJS.Timeout | null>(null);
 
   // State for payment type and location
-  const [paymentType, setPaymentType] = useState<'dollar' | 'naira' | 'crypto'>('dollar');
+  const [paymentType, setPaymentType] = useState<'dollar' | 'naira' | 'crypto'>(() => currency_code === 'NGN' ? 'naira' : 'dollar');
   const [paymentMethod, setPaymentMethod] = useState('stripe');
-  const [availablePaymentMethods, setAvailablePaymentMethods] = useState<string[]>(['stripe', 'paypal']);
-  const [originalCurrencyCode, setOriginalCurrencyCode] = useState<'USD' | 'NGN'>('USD');
+  const [availablePaymentMethods, setAvailablePaymentMethods] = useState<string[]>(() => currency_code === 'NGN' ? ['paystack'] : ['stripe', 'paypal']);
 
   const formRef = useRef<HTMLFormElement>(null);
   const isMounted = useRef(true);
@@ -146,25 +229,12 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     details: string = '',
     isRetryable: boolean = false
   ) => {
-    console.log("%c[handlePaymentError] Triggering error UI", "color: red; font-weight: bold;", {
-      errorType,
-      message,
-      details,
-      isRetryable
-    });
     showError(errorType, message, details, isRetryable);
   }, [showError]);
 
-  // Initialize payment type based on currency
+
+  // Effect to run once on mount for form restoration
   useEffect(() => {
-    setOriginalCurrencyCode(currency_code);
-    if (currency_code === 'NGN') {
-      setPaymentType('naira');
-      setAvailablePaymentMethods(['paystack']);
-    } else {
-      setPaymentType('dollar');
-      setAvailablePaymentMethods(['stripe', 'paypal']);
-    }
     const savedFormData = localStorage.getItem('paymentFormData');
     if (savedFormData && formRef.current) {
       try {
@@ -173,7 +243,8 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
         if (formData.customer_name) form.customer_name.value = formData.customer_name;
         if (formData.customer_email) form.customer_email.value = formData.customer_email;
         if (formData.customer_phone) form.customer_phone.value = formData.customer_phone;
-        if (formData.payment_method) {
+        // Restore payment method only if it's valid for the current payment type
+        if (formData.payment_method && availablePaymentMethods.includes(formData.payment_method)) {
           setPaymentMethod(formData.payment_method);
           const paymentMethodRadio = form.querySelector(`input[name="payment_method"][value="${formData.payment_method}"]`) as HTMLInputElement;
           if (paymentMethodRadio) paymentMethodRadio.checked = true;
@@ -182,21 +253,18 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
         console.error('Error restoring form ', error);
       }
     }
-  }, [currency_code]);
+  }, [availablePaymentMethods]); // Depend on available methods to ensure we don't set an invalid one
 
   // Cleanup on unmount
   useEffect(() => {
-    console.log("[ModalPurchase] Component mounted");
     isMounted.current = true;
     return () => {
-      console.log("[ModalPurchase] Component unmounting");
       isMounted.current = false;
       if (autoRetryTimer) {
         clearTimeout(autoRetryTimer);
       }
-      setCurrencyCode(originalCurrencyCode);
     };
-  }, [autoRetryTimer, originalCurrencyCode, setCurrencyCode]);
+  }, [autoRetryTimer]);
 
   // Update localStorage on form input change
   useEffect(() => {
@@ -264,29 +332,6 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     if (paymentType === 'crypto') return 'USD';
     return 'USD';
   }, [paymentType]);
-
-  // Format crypto amount for display
-  const formatCryptoAmount = (usdAmount: number, cryptoType: 'bitcoin' | 'solana' | 'tron'): string => {
-    const cryptoAmount = convertUSDToCrypto(usdAmount, cryptoType);
-    if (cryptoType === 'bitcoin') {
-      return cryptoAmount.toFixed(8);
-    } else if (cryptoType === 'solana') {
-      return cryptoAmount.toFixed(4);
-    } else if (cryptoType === 'tron') {
-      return cryptoAmount.toFixed(2);
-    }
-    return cryptoAmount.toFixed(6);
-  };
-
-  // Get crypto symbol
-  const getCryptoSymbol = (cryptoType: 'bitcoin' | 'solana' | 'tron'): string => {
-    switch (cryptoType) {
-      case 'bitcoin': return 'BTC';
-      case 'solana': return 'SOL';
-      case 'tron': return 'TRX';
-      default: return '';
-    }
-  };
 
   // Internet check
   const hasInternet = useCallback(async () => {
@@ -406,7 +451,6 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
       clearTimeout(autoRetryTimer);
     }
     const timer = setTimeout(async () => {
-      console.log(`[AutoRetry] Attempt ${autoRetryCount + 1} - Checking network and retrying...`);
       const masterRef = localStorage.getItem('masterRef');
       if (masterRef) {
         setAutoRetryCount(prev => prev + 1);
@@ -419,7 +463,6 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
 
   // Reset to initial state
   const resetToInitialState = useCallback(() => {
-    console.log("[resetToInitialState] Resetting to initial modal state");
     setIsProcessing(false);
     setShowResult(false);
     setResultData(null);
@@ -477,7 +520,6 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
   // Initialize payment with comprehensive tracking
   const initializePayment = useCallback(async () => {
     if (!data || !formRef.current) {
-      console.error("[initializePayment] Missing data or form reference");
       return;
     }
     if (!validateForm()) {
@@ -489,7 +531,6 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     const customerPhone = (formData.get("customer_phone") as string)?.trim();
     const amount = getPriceForPaymentType();
     const fileId = data.drive_file_id;
-    console.log("[initializePayment] Starting payment initialization...");
     setIsProcessing(true);
     hideErrorState();
     setShowResult(false);
@@ -505,14 +546,10 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
       if (!masterRef) {
         masterRef = `RESEARCH_HUB_${Math.random().toString(36).substr(2, 8).toUpperCase()}`;
         localStorage.setItem('masterRef', masterRef);
-        console.log("[initializePayment] Generated new masterRef:", masterRef);
-      } else {
-        console.log("[initializePayment] Reusing existing masterRef:", masterRef);
       }
 
       const platformRef = `PS_${Date.now()}_${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
       localStorage.setItem('platformRef', platformRef);
-      console.log("[initializePayment] Generated new platformRef:", platformRef);
 
       const payload = {
         email,
@@ -526,7 +563,6 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
       };
 
       const paymentUrl = getPaymentUrl();
-      console.log("[initializePayment] Sending payload to:", paymentUrl, payload);
 
       const response = await fetch(paymentUrl, {
         method: 'POST',
@@ -538,21 +574,18 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
       });
 
       const responseText = await response.text();
-      console.log("[initializePayment] Raw response:", responseText.substring(0, 200));
 
       // Always try to parse JSON
       let result;
       try {
         result = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error("[initializePayment] Failed to parse JSON:", parseError);
+      } catch {
         handlePaymentError('developer', 'Invalid server response format', 'Response was not valid JSON');
         return;
       }
 
       // Handle HTTP errors
       if (!response.ok) {
-        console.error("[initializePayment] HTTP Error:", response.status, response.statusText);
         handlePaymentError(
           paymentMethod,
           `Server responded with ${response.status}`,
@@ -569,7 +602,6 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
         result.success === false ||
         !result.data?.authorization_url
       ) {
-        console.log("[initializePayment] 🚨 Payment FAILED or INVALID response:", result);
 
         const errorMessage = result.message || result.error || 'Payment initialization failed';
         const errorDetails = result.details || result.description || '';
@@ -582,10 +614,6 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
         return;
       }
 
-      // ✅ SUCCESSFUL INITIALIZATION
-      console.log("[initializePayment] ✅ Initialization successful!");
-      console.log("[initializePayment] Opening popup with URL:", result.data.authorization_url);
-
       const url = result.data.authorization_url;
       const w = 600, h = 700;
       const left = (screen.width / 2) - (w / 2);
@@ -596,15 +624,10 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
         `toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=${w},height=${h},top=${top},left=${left}`
       );
 
-      if (popup) {
-        console.log("[initializePayment] Popup opened successfully");
-        // The new fallback polling on modal close handles verification.
-        // No need for active polling while the popup is open anymore.
-      } else {
+      if (!popup) {
         handlePaymentError('user', 'Popup was blocked', 'Please allow popups for this site.');
       }
     } catch (error) {
-      console.error("[initializePayment] Payment initialization failed:", error);
 
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       const currentFormData = new FormData(formRef.current as HTMLFormElement);
@@ -621,13 +644,11 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
   // Handle form submit
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    console.log("[handleSubmit] Form submitted");
     initializePayment();
   }, [initializePayment]);
 
   // Manual retry function
   const handleRetryPayment = useCallback(async () => {
-    console.log("[handleRetryPayment] Manual retry triggered");
     setShowErrorState(false);
     setErrorStateData(null);
     setAutoRetryCount(0);
@@ -640,7 +661,6 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
 
   // ✅ FIXED: Renamed parameter to webhookData to avoid shadowing
   const handleWebhookResponse = useCallback((webhookData: WebhookResponseData) => {
-    console.log("[handleWebhookResponse] Received webhook data:", webhookData);
 
     if (webhookData.payment_status === 'success') {
       setResultData({
@@ -693,7 +713,6 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
 
   // Result action handlers
   const handleTryAgain = useCallback(() => {
-    console.log("[handleTryAgain] Resetting to original state from payment results");
     setShowResult(false);
     setIsProcessing(false);
     setShowErrorState(false);
@@ -727,12 +746,10 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     const handleMessage = (event: MessageEvent) => {
       const backendOrigin = new URL(BASE_URI).origin;
       if (event.origin !== backendOrigin) {
-        console.warn(`[ModalPurchase] Discarding message from untrusted origin: ${event.origin}`);
         return;
       }
 
       if (event.data && event.data.type === 'payment_response' && event.data.payload) {
-        console.log('[ModalPurchase] Received payment response via postMessage:', event.data.payload);
         handleWebhookResponse(event.data.payload);
       }
     };
@@ -752,7 +769,6 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
     setIsVerifying(true);
 
     const pollUrl = getVerifyUrl(reference);
-    console.log(`[Fallback Polling] Starting polling for reference: ${reference} at URL: ${pollUrl}`);
 
     const intervalId = setInterval(async () => {
         try {
@@ -762,7 +778,6 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
             if (result.success && result.data) {
                 const status = result.data.payment_status;
                 if (status === 'completed' || status === 'failed' || status === 'abandoned') {
-                    console.log(`[Fallback Polling] Final status received: ${status}. Stopping.`);
                     clearInterval(intervalId);
                     setIsVerifying(false);
 
@@ -770,8 +785,7 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
                     handleWebhookResponse({ payment_status: status === 'completed' ? 'success' : status, reference });
                 }
             }
-        } catch (error) {
-            console.error('[Fallback Polling] Error verifying payment status:', error);
+        } catch {
             // Don't stop polling on network error, it might recover
         }
     }, 3000); // Poll every 3 seconds
@@ -786,7 +800,7 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
         }
     }, 120000);
 
-  }, [BASE_URI, handleWebhookResponse, handlePaymentError, isVerifying]);
+  }, [ handleWebhookResponse, handlePaymentError, isVerifying, getVerifyUrl]);
 
 
   const handleClose = useCallback(() => {
@@ -1034,79 +1048,8 @@ const ModalPurchase = ({ onClose, data, showToast }: ModalProps) => {
                           </div>
                         </label>
                       )}
-                      {availablePaymentMethods.includes('nowpayments') && (
-                        <>
-                          <label className="payment-option crypto-option">
-                            <input
-                              type="radio"
-                              name="payment_method"
-                              value="bitcoin"
-                              defaultChecked={true}
-                            />
-                            <div className="payment-card">
-                              <div className="flex">
-                                <i className="fab fa-bitcoin bitcoin-icon"></i>
-                                <span>Bitcoin (BTC)</span>
-                              </div>
-                              <div className="crypto-info">
-                                {cryptoLoading ? (
-                                  <small>Loading price...</small>
-                                ) : (
-                                  <small>
-                                    {formatCryptoAmount(getPriceForPaymentType() * (1 + PAYSTACK_PERCENTAGE_FEE), 'bitcoin')} {getCryptoSymbol('bitcoin')}
-                                    <br /><span style={{ color: '#666' }}> ({getCurrencySymbol()}{fmt(getPriceForPaymentType() * (1 + PAYSTACK_PERCENTAGE_FEE))})</span>
-                                  </small>
-                                )}
-                              </div>
-                            </div>
-                          </label>
-                          <label className="payment-option crypto-option">
-                            <input
-                              type="radio"
-                              name="payment_method"
-                              value="solana"
-                            />
-                            <div className="payment-card">
-                              <div className="flex">
-                                <i className="fas fa-coins solana-icon"></i>
-                                <span>Solana (SOL)</span>
-                              </div>
-                              <div className="crypto-info">
-                                {cryptoLoading ? (
-                                  <small>Loading price...</small>
-                                ) : (
-                                  <small>
-                                    {formatCryptoAmount(getPriceForPaymentType() * (1 + PAYSTACK_PERCENTAGE_FEE), 'solana')} {getCryptoSymbol('solana')}
-                                    <br /><span style={{ color: '#666' }}> ({getCurrencySymbol()}{fmt(getPriceForPaymentType() * (1 + PAYSTACK_PERCENTAGE_FEE))})</span>
-                                  </small>
-                                )}
-                              </div>
-                            </div>
-                          </label>
-                          <label className="payment-option crypto-option">
-                            <input
-                              type="radio"
-                              name="payment_method"
-                              value="tron"
-                            />
-                            <div className="payment-card">
-                              <div className="flex">
-                                <i className="fas fa-coins tron-icon"></i>
-                                <span>Tron (TRX)</span>
-                              </div>
-                              <div className="crypto-info">
-                                {cryptoLoading ? (
-                                  <small>Loading price...</small>
-                                ) : (
-                                  <small>
-                                    {formatCryptoAmount(getPriceForPaymentType() * (1 + PAYSTACK_PERCENTAGE_FEE), 'tron')} {getCryptoSymbol('tron')}
-                                    <br /><span style={{ color: '#666' }}> ({getCurrencySymbol()}{fmt(getPriceForPaymentType() * (1 + PAYSTACK_PERCENTAGE_FEE))})</span>
-                                  </small>
-                                )}
-                              </div>
-                            </div>
-                          </label>
-                        </>
+                      {paymentType === 'crypto' && (
+                        <CryptoPaymentOptions getPrice={getPriceForPaymentType} getCurrencySymbol={getCurrencySymbol} fmt={fmt} />
                       )}
                     </div>
                   </div>

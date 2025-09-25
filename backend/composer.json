@@ -4,10 +4,10 @@
     "type": "project",
     "license": "MIT",
     "require": {
-        "aws/aws-sdk-php": "*",
-        "vlucas/phpdotenv": "*",
-        "phpmailer/phpmailer": "*",
-        "yabacon/paystack-php": "*"
+        "aws/aws-sdk-php": "^3.299",
+        "vlucas/phpdotenv": "^5.6",
+        "phpmailer/phpmailer": "^6.9",
+        "yabacon/paystack-php": "^2.0"
     },
     "autoload": {
         "psr-4": {

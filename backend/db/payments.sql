@@ -1,9 +1,6 @@
 -- Merged Payments Database Schema
 -- This schema combines the application-specific payment details with provider-specific logging.
 
--- Use the main application database
-USE research_hub;
-
 -- Drop existing table if it exists to avoid conflicts
 DROP TABLE IF EXISTS payments;
 

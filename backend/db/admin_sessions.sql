@@ -1,15 +1,4 @@
--- Admin Login Database Schema
--- This schema handles admin authentication and session management
 
--- Use the main application database
-USE research_hub;
-
--- Admin Login Database Schema
--- This schema handles admin session management only
--- Admin authentication is handled via environment variables
-
--- Use the main application database
-USE research_hub;
 
 -- Drop existing tables if they exist to avoid conflicts
 DROP TABLE IF EXISTS admin_sessions;

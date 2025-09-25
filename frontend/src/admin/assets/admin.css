@@ -239,16 +239,16 @@ body {
   gap: 0.5rem;
 }
 
-  .admin-navbar .nav-link {
-    padding: 0.75rem 1.25rem;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    position: relative;
-    overflow: hidden;
-    gap: 0.5rem;
-    font-weight: 600;
-    color: var(--white);
+.admin-navbar .nav-link {
+  padding: 0.75rem 1.25rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--white);
 }
 
 .admin-navbar .nav-link.active {
@@ -269,21 +269,6 @@ body {
 
 .admin-navbar .nav-link:not(.active):hover::before {
   width: 80%;
-}
-
-.view-users {
-  background: linear-gradient(184deg, #a7a7a7 0%, #292929 100%);
-  color: var(--white);
-  padding: 14px 20px;
-  font-weight: 600;
-  font-size: 1rem;
-  border-radius: 15px;
-}
-
-.view-users:hover {
-  background: var(--primary-dark);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(67, 97, 238, 0.3);
 }
 
 .mobile-nav ul {
@@ -331,8 +316,7 @@ body {
   animation: slideUp 0.3s ease;
 }
 
-.mobile-nav .nav-link,
-.mobile-nav .view-users {
+.mobile-nav .nav-link {
   display: flex;
   align-items: center;
   padding: 15px 20px;
@@ -344,25 +328,17 @@ body {
   width: 100%;
 }
 
-.mobile-nav .nav-link:hover,
-.mobile-nav .view-users:hover {
+.mobile-nav .nav-link:hover {
   background: #34495e;
   transform: translateX(5px);
 }
 
-.mobile-nav .nav-link i,
-.mobile-nav .view-users i {
+.mobile-nav .nav-link i {
   margin-right: 10px;
   width: 20px;
   text-align: center;
 }
 
-.mobile-nav .view-users {
-  background: #3498db;
-  color: white;
-  font-weight: 500;
-  text-align: center;
-}
 
 /* ==============================================
    ADMIN PAGE (Admin.tsx)
@@ -2212,10 +2188,6 @@ input:checked + .slider:before {
   .mobile-nav .nav-link {
     font-size: 16px;
   }
-  .mobile-nav .view-users {
-    font-size: 16px;
-    margin-top: 20px;
-  }
 }
 
 @media (max-width: 768px) {
@@ -2302,8 +2274,7 @@ input:checked + .slider:before {
     top: 55px;
     padding: 15px;
   }
-  .mobile-nav .nav-link,
-  .mobile-nav .view-users {
+  .mobile-nav .nav-link{
     padding: 12px 15px;
     font-size: 15px;
   }
