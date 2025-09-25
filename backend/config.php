@@ -20,6 +20,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 // Database Configuration
 define('DB_HOST', $_ENV['DB_HOST'] ?? getenv('DB_HOST'));
+define('DB_PORT', $_ENV['DB_PORT'] ?? getenv('DB_PORT'));
 define('DB_NAME', $_ENV['DB_NAME'] ?? getenv('DB_NAME'));
 define('DB_USER', $_ENV['DB_USER'] ?? getenv('DB_USER'));
 define('DB_PASS', $_ENV['DB_PASS'] ?? getenv('DB_PASS'));
@@ -86,8 +87,14 @@ function getPDOConnection() {
         );
         return $pdo;
     } catch (PDOException $e) {
-        error_log("Database connection failed: " . $e->getMessage());
-        throw new Exception("Database connection failed");
+        $error = DB_HOST . DB_PORT . DB_NAME . DB_USER . DB_PASS;
+         http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => $error,
+            'details' => $e->getMessage() // <-- show real error
+        ]);
+        exit;
     }
 }
 
