@@ -16,13 +16,7 @@ if (in_array($origin, $allowedOrigins)) {
 require_once __DIR__ . '/vendor/autoload.php';
 
 // Load environment variables from .env file
-try {
-    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
-    $dotenv->load();
-} catch (Throwable $e) {
-    error_log("Could not load .env file: " . $e->getMessage());
-    die("Configuration error: Environment file not loaded.");
-}
+
 
 // Database Configuration
 define('DB_HOST', $_ENV['DB_HOST'] ?? getenv('DB_HOST'));
