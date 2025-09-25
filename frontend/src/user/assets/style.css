@@ -49,7 +49,7 @@ h1, h2, h3, h4 {
   text-transform: uppercase;
   color: var(--secondary);
 }
-p,h1,h2,h3,h4{
+p,h1,h2,h3,h4,#summaryProduct{
      display: -webkit-box;
     -webkit-box-orient: vertical;
     overflow: hidden;
@@ -1106,7 +1106,7 @@ nav a:hover::after {
   border-top: 1px solid var(--light-gray);
 }
 
-.amount, #fee-amount, .payment-card span {
+.amount, #fee-amount, #summaryProduct, .payment-card span {
   font-weight: 500;
 }
 
@@ -1976,17 +1976,6 @@ footer {
   }
 }
 
-@media (max-width: 500px) {
-  .logo-text p { font-size: 14px; }
-  .logo-text h1 { font-size: 26px; letter-spacing: -1px; }
-  .marketplace-header h1, .section-title { font-size: 24px; }
-  .logo-icon { font-size: 18px; width: 40px; height: 40px; }
-  .section-subtitle { font-size: 16px; }
-  .author-profile-name { font-size: 20px; }
-  .author-profile-title { font-size: 14px; }
-  .author-profile-contact { font-size: 13px; }
-  .modal-title { font-size: 22px; }
-}
 
 @media (max-width: 768px) {
   .form-actions { flex-direction: column; }
@@ -2004,6 +1993,22 @@ footer {
   .controls { flex-direction: column; align-items: stretch; }
   .search-box, #resourceFilter { max-width: 100%; min-width: 100%; }
   .resources-table th, .resources-table td { padding: 12px 15px; }
+}
+
+@media (max-width: 500px) {
+  .logo-text p { font-size: 14px; }
+  .logo-text h1 { font-size: 26px; letter-spacing: -1px; }
+  .marketplace-header h1, .section-title { font-size: 24px; }
+  .logo-icon { font-size: 18px; width: 40px; height: 40px; }
+  .section-subtitle { font-size: 16px; }
+  .author-profile-name { font-size: 20px; }
+  .author-profile-title { font-size: 14px; }
+  .author-profile-contact { font-size: 13px; }
+  .modal-title { font-size: 22px; }
+}
+
+@media (max-width: 560px) {
+  .summary-row{display: grid;}
 }
 
 @media (max-width: 480px) {
@@ -2026,6 +2031,7 @@ footer {
 
 ::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {

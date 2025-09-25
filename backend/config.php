@@ -15,12 +15,14 @@ if (in_array($origin, $allowedOrigins)) {
 // Load Composer's autoloader
 require_once __DIR__ . '/vendor/autoload.php';
 
+if (class_exists('Dotenv\Dotenv')) {
 try {
     $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
     $dotenv->load();
 } catch (Throwable $e) {
     error_log("Could not load .env file: " . $e->getMessage());
     die("Configuration error: Environment file not loaded.");
+}
 }
 
 
