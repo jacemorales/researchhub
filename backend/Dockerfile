@@ -25,5 +25,6 @@ RUN if [ -f "composer.json" ]; then composer install --no-dev --optimize-autoloa
 # Expose port
 EXPOSE 8000
 
-# Start PHP server
-CMD ["sh", "-c", "php -S 0.0.0.0:${PORT:-8000} -t public"]
+# Start PHP server from current directory
+CMD ["sh", "-c", "php -S 0.0.0.0:${PORT:-8000} -t ."]
+
